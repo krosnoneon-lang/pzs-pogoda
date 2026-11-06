@@ -4,6 +4,7 @@ import {
   Audio,
   Easing,
   Img,
+  OffthreadVideo,
   Sequence,
   interpolate,
   spring,
@@ -219,6 +220,24 @@ const EndCardView: React.FC<{ card: EndCard; bg: string }> = ({ card, bg }) => {
   const p = spring({ frame: frame - 6, fps, config: { damping: 200 } });
   const p2 = spring({ frame: frame - 14, fps, config: { damping: 200 } });
   const accent = card.accent === "magenta" ? COLORS.magenta : COLORS.blue;
+  if (card.video) {
+    const vf = sec(card.videoSeconds ?? 3);
+    return (
+      <AbsoluteFill style={{ background: "#050a1a" }}>
+        <Sequence durationInFrames={vf} layout="absolute-fill">
+          <OffthreadVideo src={staticFile(card.video)} volume={card.videoVolume ?? 0} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        </Sequence>
+        {card.videoEndFrame && (
+          <Sequence from={vf - 1} layout="absolute-fill">
+            <Img src={staticFile(card.videoEndFrame)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          </Sequence>
+        )}
+        <div style={{ position: "absolute", top: SAFE.top + 90, left: 60, right: 60, textAlign: "center", ...text, fontWeight: 800, fontSize: 36, letterSpacing: 3, color: accent, textTransform: "uppercase", lineHeight: 1.3, whiteSpace: "nowrap", opacity: p, transform: `translateY(${(1 - p) * 14}px)`, textShadow: "0 2px 18px rgba(0,0,0,0.8)" }}>
+          {card.kicker}
+        </div>
+      </AbsoluteFill>
+    );
+  }
   if (card.image && card.imageFit === "contain") {
     return (
       <AbsoluteFill>

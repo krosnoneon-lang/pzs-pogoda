@@ -122,6 +122,12 @@ export type EndCard = {
   subtitle?: string;
   /** gotowa grafika planszy 1080×1920 (public/plansze/…) – jeśli jest, zastępuje typografię */
   image?: string;
+  /** animacja 1080×1920 (public/plansze/…): gra raz, potem stoi ostatnia klatka `videoEndFrame` */
+  video?: string;
+  videoSeconds?: number;
+  videoEndFrame?: string;
+  /** głośność dźwięku animacji (0 = bez) */
+  videoVolume?: number;
   /** "cover" = pełny ekran (grafika 1080×1920), "contain" = grafika pozioma na środku planszy */
   imageFit?: "cover" | "contain";
   /** logo sponsora / projektu (public/plansze/…) */
@@ -131,7 +137,7 @@ export type EndCard = {
 
 /** Własne projekty – rotacja, gdy nie ma sponsora (codziennie inny) */
 export const PROJECT_CARDS: EndCard[] = [
-  { id: "pzs", kicker: "Prognozę przygotowało dla was", title: "Podkarpacie ze Smakiem", image: "plansze/pzs-neon.png", imageFit: "contain", accent: "magenta" },
+  { id: "pzs", kicker: "Prognozę przygotowało dla was", title: "Podkarpacie ze Smakiem", video: "plansze/pzs-logo-anim.mp4", videoSeconds: 3, videoEndFrame: "plansze/pzs-logo-anim-koniec.jpg", videoVolume: 0.7, accent: "magenta" },
   { id: "studio", kicker: "Zapraszamy do", title: "Studio ze Smakiem", subtitle: "Rozmowy z ludźmi ze smakiem", accent: "blue" },
   { id: "odbij", kicker: "Akcja społeczna", title: "Odbij z ekranu", accent: "magenta" },
   { id: "via", kicker: "Projekt Podkarpacia ze Smakiem", title: "Via Carpatia", accent: "blue" },

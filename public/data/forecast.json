@@ -3,80 +3,80 @@
   "cities": [
     {
       "name": "Rzeszów",
-      "kind": "czesciowe",
-      "tDay": 6,
-      "tNight": -4,
-      "pop": 1,
-      "wind": 9,
+      "kind": "pochmurno",
+      "tDay": 5,
+      "tNight": -1,
+      "pop": 0,
+      "wind": 7,
       "gust": 15,
-      "windDir": "wsch."
+      "windDir": "zach."
     },
     {
       "name": "Krosno",
-      "kind": "czesciowe",
-      "tDay": 6,
-      "tNight": -1,
+      "kind": "pochmurno",
+      "tDay": 4,
+      "tNight": -2,
       "pop": 0,
-      "wind": 9,
-      "gust": 9,
-      "windDir": "wsch."
+      "wind": 7,
+      "gust": 15,
+      "windDir": "zach."
     },
     {
       "name": "Przemyśl",
-      "kind": "slonce",
+      "kind": "pochmurno",
       "tDay": 6,
-      "tNight": -4,
-      "pop": 1,
-      "wind": -1,
-      "gust": 0,
-      "windDir": ""
+      "tNight": -2,
+      "pop": 0,
+      "wind": 10,
+      "gust": 18,
+      "windDir": "pn.-zach."
     },
     {
       "name": "Tarnobrzeg",
-      "kind": "slonce",
-      "tDay": 6,
-      "tNight": -3,
-      "pop": 0,
-      "wind": -1,
-      "gust": 0,
-      "windDir": ""
-    },
-    {
-      "name": "Polańczyk",
-      "kind": "mgla",
+      "kind": "pochmurno",
       "tDay": 5,
       "tNight": -3,
       "pop": 0,
-      "wind": 11,
-      "gust": 11,
+      "wind": 7,
+      "gust": 13,
+      "windDir": "pd.-zach."
+    },
+    {
+      "name": "Polańczyk",
+      "kind": "pochmurno",
+      "tDay": 5,
+      "tNight": -2,
+      "pop": 0,
+      "wind": 8,
+      "gust": 19,
       "windDir": "pn.-wsch."
     },
     {
       "name": "Dukla",
-      "kind": "czesciowe",
-      "tDay": 6,
-      "tNight": -4,
+      "kind": "pochmurno",
+      "tDay": 4,
+      "tNight": -1,
       "pop": 0,
-      "wind": 7,
-      "gust": 20,
+      "wind": 6,
+      "gust": 16,
       "windDir": "pn."
     }
   ],
-  "background": "czesciowe",
+  "background": "pochmurno",
   "sunrise": "06:31",
   "sunset": "15:59",
   "fullMoon": false,
   "warnings": [
     {
-      "event": "Gęsta mgła do godz. 10:00",
+      "event": "Gęsta mgła",
       "level": 1,
-      "area": "22 powiaty, m.in. Rzeszów, Krosno, Przemyśl, Tarnobrzeg"
+      "area": "Rzeszów, Krosno, Przemyśl, Tarnobrzeg, Dukla"
     }
   ],
   "endCard": "pzs",
   "dayNote": null,
   "maxim": "Kto rano wstaje, temu Pan Bóg daje.",
   "voiceover": false,
-  "source": "Interia · AccuWeather · yr.no · Ventusky · IMGW (pobrane 06.11 wieczorem)",
-  "voiceoverText": "Dzień dobry, Podkarpacie! Dziś sobota. Słonecznie w większości regionu. W Rzeszowie w dzień do 27 stopni, w nocy 15 stopni. Myśl na dziś: Kto rano wstaje, temu Pan Bóg daje. Miłego dnia!"
+  "source": "Open-Meteo · IMGW-PIB",
+  "voiceoverText": "Dzień dobry, Podkarpacie! Dziś sobota. Pochmurno w większości regionu. W Rzeszowie w dzień do 5 stopni, w nocy minus 1 stopień. Uwaga, IMGW ostrzega: gęsta mgła. Myśl na dziś: Kto rano wstaje, temu Pan Bóg daje. Miłego dnia!"
 }

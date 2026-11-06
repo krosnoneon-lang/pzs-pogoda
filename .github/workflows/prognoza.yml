@@ -12,6 +12,10 @@ on:
         description: "Dane testowe (zima/lato/burza/mgla) – puste = prawdziwa prognoza"
         required: false
         default: ""
+      date:
+        description: "Data prognozy RRRR-MM-DD (puste = dziś)"
+        required: false
+        default: ""
 
 concurrency: prognoza
 
@@ -50,10 +54,12 @@ jobs:
       - name: Pobranie prognozy
         if: steps.guard.outputs.run == 'true'
         run: |
+          EXTRA=""
+          if [ -n "${{ github.event.inputs.date }}" ]; then EXTRA="--date ${{ github.event.inputs.date }}"; fi
           if [ -n "${{ github.event.inputs.mock }}" ]; then
-            npx tsx scripts/fetch-forecast.ts --mock "${{ github.event.inputs.mock }}"
+            npx tsx scripts/fetch-forecast.ts --mock "${{ github.event.inputs.mock }}" $EXTRA
           else
-            npx tsx scripts/fetch-forecast.ts
+            npx tsx scripts/fetch-forecast.ts $EXTRA
           fi
 
       - name: Render wideo

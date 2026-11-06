@@ -24,14 +24,14 @@ odtworzy się sam, a muzyka ściszy się pod głos.
 ```bash
 npm i
 npm run prognoza:test        # dane testowe (zima); też: npx tsx scripts/fetch-forecast.ts --mock lato|burza|mgla --pelnia
-npm run prognoza             # prawdziwa prognoza (Open-Meteo + IMGW)
+npm run prognoza             # prawdziwa prognoza (MET Norway + IMGW)
 npx remotion studio          # podgląd
 npm run render               # out/prognoza.mp4
 ```
 
 ## Dane
-- Prognoza: Open-Meteo (bez klucza). Dzień = maks. dnia, noc = min. 21:00–06:00.
-- Ikony: kody WMO → 9 kategorii (deszcz przy ≤ −1 °C = gołoledź, śnieg z porywami ≥ 50 km/h = zamieć).
+- Prognoza: MET Norway / yr.no (api.met.no, bez klucza, CC BY 4.0 – użycie komercyjne dozwolone z podpisem „Dane: MET Norway”, podpis jest na ekranie). Dzień = maks. 06–21, noc = min. 21–06, ikona = pogoda przeważająca 08–18 (opady/burza mają pierwszeństwo).
+- Ikony: symbole MET → 9 kategorii (deszcz przy ≤ −1 °C = gołoledź, śnieg z porywami ≥ 50 km/h = zamieć).
 - Tło: kategoria dominująca w regionie (remis → Rzeszów); przełącznik `BACKGROUND_MODE`.
 - Ostrzeżenia IMGW: woj. podkarpackie, ważne danego dnia, maks. 2 najwyższe stopnie.
 - Wschód/zachód słońca i pełnia: liczone lokalnie (astronomy-engine).

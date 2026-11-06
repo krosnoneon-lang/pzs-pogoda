@@ -185,6 +185,9 @@ const BottomInfo: React.FC<{ f: Forecast }> = ({ f }) => {
           </div>
         )}
       </div>
+      {!f.source.startsWith("DANE TESTOWE") && (
+        <div style={{ order: 99, textAlign: "center", ...text, fontWeight: 600, fontSize: 17, color: "rgba(255,255,255,0.55)", opacity: p }}>{f.source}</div>
+      )}
       {f.warnings.slice(0, 2).map((w, i) => (
         <div
           key={i}

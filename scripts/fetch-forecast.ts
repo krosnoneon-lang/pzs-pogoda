@@ -2,11 +2,12 @@
  * Pobiera prognozę na DZISIAJ (czas Warszawy) i zapisuje public/data/forecast.json
  * – to są propsy dla kompozycji „PrognozaPogody”.
  *
- *   npx tsx scripts/fetch-forecast.ts                 # prawdziwe dane (Open-Meteo + IMGW)
+ *   npx tsx scripts/fetch-forecast.ts                 # prawdziwe dane (MET Norway + IMGW)
  *   npx tsx scripts/fetch-forecast.ts --mock zima     # dane testowe: zima | lato | burza | mgla
  *   npx tsx scripts/fetch-forecast.ts --date 2026-11-07
  *
- * Źródła: Open-Meteo (bez klucza), IMGW-PIB danepubliczne (ostrzeżenia),
+ * Źródła: MET Norway / yr.no (CC BY 4.0, użycie komercyjne dozwolone z podpisem źródła),
+ * IMGW-PIB danepubliczne (ostrzeżenia),
  * wschód/zachód słońca i pełnia liczone lokalnie (astronomy-engine).
  */
 import * as fs from "node:fs";
@@ -35,20 +36,6 @@ const localMidnight = (dateStr: string) => {
   return new Date(guess.getTime() - (offH > 12 ? offH - 24 : offH) * 3600e3);
 };
 
-/* ---------- kody WMO → 9 kategorii ---------- */
-export const kindFromWmo = (code: number, tMin: number, gust: number): WeatherKind => {
-  const snowy = [71, 73, 75, 77, 85, 86].includes(code);
-  if (snowy && gust >= 50) return "zamiec";
-  if (snowy) return "snieg";
-  if ([56, 57, 66, 67].includes(code)) return "gololedz";
-  if ([95, 96, 99].includes(code)) return "burza";
-  if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return tMin <= -1 ? "gololedz" : "deszcz";
-  if ([45, 48].includes(code)) return "mgla";
-  if (code === 3) return "pochmurno";
-  if (code === 2) return "czesciowe";
-  return "slonce"; // 0, 1
-};
-
 const DIRS = ["pn.", "pn.-wsch.", "wsch.", "pd.-wsch.", "pd.", "pd.-zach.", "zach.", "pn.-zach."];
 const windDir = (deg: number) => DIRS[Math.round(((deg % 360) / 45)) % 8];
 
@@ -63,60 +50,95 @@ const CITY_TERYT: Record<string, string> = {
 };
 
 async function getJson(url: string) {
-  const r = await fetch(url, { headers: { "User-Agent": "pzs-prognoza/1.0" } });
+  const r = await fetch(url, { headers: { "User-Agent": UA } });
   if (!r.ok) throw new Error(`${r.status} ${url}`);
   return r.json();
 }
 
-/**
- * Kod pogody „na dzień” z godzin 08–18 zamiast dziennego kodu Open-Meteo (ten bierze
- * najgorszy stan doby, więc sama poranna mgła oznaczała cały dzień jako mglisty).
- * Opady/burza w ciągu dnia wygrywają; poza tym – stan, który trwa najdłużej.
- */
-const SEVERITY = (c: number) => ([95, 96, 99].includes(c) ? 5 : c >= 71 && c <= 86 && ![80, 81, 82].includes(c) ? 4 : [56, 57, 66, 67].includes(c) ? 4 : c >= 51 ? 3 : 0);
-function dayCode(d: any): number {
-  const codes: number[] = d.hourly.time
-    .map((t: string, k: number) => ({ t, c: d.hourly.weather_code[k] }))
-    .filter((x: { t: string }) => x.t >= `${DATE}T08:00` && x.t <= `${DATE}T18:00`)
-    .map((x: { c: number }) => x.c);
-  if (!codes.length) return d.daily.weather_code[d.daily.time.indexOf(DATE)];
-  const wet = codes.filter((c) => SEVERITY(c) > 0);
-  if (wet.length >= 2) return wet.sort((a, b) => SEVERITY(b) - SEVERITY(a) || b - a)[0];
-  const count = new Map<number, number>();
-  codes.forEach((c) => count.set(c, (count.get(c) ?? 0) + 1));
-  return [...count.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+/* ---------- MET Norway (yr.no): symbole → 9 kategorii ---------- */
+const UA = "pzs-prognoza/1.0 (+https://github.com/krosnoneon-lang/pzs-pogoda; podkarpaciezesmakiem.pl)";
+const SEV: Record<WeatherKind, number> = { burza: 5, zamiec: 4, snieg: 4, gololedz: 4, deszcz: 3, mgla: 0, pochmurno: 0, czesciowe: 0, slonce: 0 };
+
+export const kindFromSymbol = (sym: string, temp: number): WeatherKind => {
+  const s = sym.replace(/_(day|night|polartwilight)$/, "");
+  if (s.includes("thunder")) return "burza";
+  if (s.includes("snow") || s.includes("sleet")) return "snieg";
+  if (s.includes("rain")) return temp <= -1 ? "gololedz" : "deszcz";
+  if (s === "fog") return "mgla";
+  if (s === "cloudy") return "pochmurno";
+  if (s === "partlycloudy") return "czesciowe";
+  return "slonce"; // clearsky, fair
+};
+
+/** godzina lokalna (Warszawa) „YYYY-MM-DDTHH” z czasu UTC */
+const localHour = (iso: string) =>
+  new Intl.DateTimeFormat("sv-SE", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" })
+    .format(new Date(iso)).replace(" ", "T");
+
+type Hour = { h: string; temp: number; wind: number; gust: number; dir: number; sym?: string; pop?: number };
+
+async function fetchMet(lat: number, lon: number): Promise<Hour[]> {
+  const url = `https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`;
+  const r = await fetch(url, { headers: { "User-Agent": UA } });
+  if (!r.ok) throw new Error(`MET Norway ${r.status} ${url}`);
+  const j: any = await r.json();
+  return j.properties.timeseries.map((t: any) => {
+    const d = t.data.instant.details;
+    const n1 = t.data.next_1_hours;
+    const n6 = t.data.next_6_hours;
+    return {
+      h: localHour(t.time),
+      temp: d.air_temperature,
+      wind: d.wind_speed * 3.6,
+      gust: (d.wind_speed_of_gust ?? d.wind_speed) * 3.6,
+      dir: d.wind_from_direction,
+      sym: n1?.summary?.symbol_code ?? n6?.summary?.symbol_code,
+      pop: n1?.details?.probability_of_precipitation ?? n6?.details?.probability_of_precipitation,
+    };
+  });
+}
+
+/** Z godzin MET Norway liczymy dzień (06–21), noc (21–06) i ikonę (08–18). */
+export function summarize(name: string, hours: Hour[], date: string): CityForecast {
+  const nd = nextDay(date);
+  const inDay = hours.filter((x) => x.h >= `${date}T06` && x.h <= `${date}T21`);
+  const night = hours.filter((x) => x.h >= `${date}T21` && x.h <= `${nd}T06`);
+  const core = hours.filter((x) => x.h >= `${date}T08` && x.h <= `${date}T18` && x.sym);
+  if (!inDay.length) throw new Error(`Brak danych godzinowych dla ${name} ${date}`);
+  const tDay = Math.max(...inDay.map((x) => x.temp));
+  const tNight = night.length ? Math.min(...night.map((x) => x.temp)) : Math.min(...inDay.map((x) => x.temp));
+  const windMax = inDay.reduce((a, b) => (b.wind > a.wind ? b : a));
+  const gust = Math.max(...inDay.map((x) => x.gust));
+  const kinds = core.map((x) => kindFromSymbol(x.sym!, x.temp));
+  let kind: WeatherKind;
+  const wet = kinds.filter((k) => SEV[k] > 0);
+  if (wet.length >= 2) kind = wet.sort((a, b) => SEV[b] - SEV[a])[0];
+  else {
+    const cnt = new Map<WeatherKind, number>();
+    kinds.forEach((k) => cnt.set(k, (cnt.get(k) ?? 0) + 1));
+    kind = [...cnt.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "pochmurno";
+  }
+  if (kind === "snieg" && gust >= 50) kind = "zamiec";
+  const pops = inDay.map((x) => x.pop).filter((p): p is number => typeof p === "number");
+  return {
+    name,
+    kind,
+    tDay: Math.round(tDay),
+    tNight: Math.round(tNight),
+    pop: Math.round(pops.length ? Math.max(...pops) : 0),
+    wind: Math.round(windMax.wind),
+    gust: Math.round(gust),
+    windDir: windDir(windMax.dir),
+  };
 }
 
 async function fetchCities(): Promise<CityForecast[]> {
-  const lat = CITIES.map((c) => c.lat).join(",");
-  const lon = CITIES.map((c) => c.lon).join(",");
-  const url =
-    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-    `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant` +
-    `&hourly=temperature_2m,weather_code&timezone=${encodeURIComponent(TZ)}&start_date=${DATE}&end_date=${nextDay(DATE)}&wind_speed_unit=kmh`;
-  const data = await getJson(url);
-  const arr = Array.isArray(data) ? data : [data];
-  return arr.map((d: any, i: number) => {
-    const day = d.daily;
-    const di = day.time.indexOf(DATE);
-    // noc: 21:00 dziś → 06:00 jutro
-    const hrs: number[] = d.hourly.time
-      .map((t: string, k: number) => ({ t, v: d.hourly.temperature_2m[k] }))
-      .filter((x: { t: string }) => x.t >= `${DATE}T21:00` && x.t <= `${nextDay(DATE)}T06:00`)
-      .map((x: { v: number }) => x.v);
-    const tMinDay = day.temperature_2m_min[di];
-    const gust = Math.round(day.wind_gusts_10m_max[di]);
-    return {
-      name: CITIES[i].name,
-      kind: kindFromWmo(dayCode(d), tMinDay, gust),
-      tDay: Math.round(day.temperature_2m_max[di]),
-      tNight: Math.round(hrs.length ? Math.min(...hrs) : tMinDay),
-      pop: Math.round(day.precipitation_probability_max[di] ?? 0),
-      wind: Math.round(day.wind_speed_10m_max[di]),
-      gust,
-      windDir: windDir(day.wind_direction_10m_dominant[di]),
-    };
-  });
+  const out: CityForecast[] = [];
+  for (const c of CITIES) {
+    out.push(summarize(c.name, await fetchMet(c.lat, c.lon), DATE));
+    await new Promise((r) => setTimeout(r, 400)); // spokojnie dla serwera MET
+  }
+  return out;
 }
 
 async function fetchWarnings(): Promise<Warning[]> {
@@ -257,7 +279,7 @@ async function main() {
     dayNote: pickDay(DATE),
     maxim: pickMaxim(DATE),
     voiceover: fs.existsSync(path.join(__dirname, "..", "public", "data", "lektor.mp3")),
-    source: mockScenario ? `DANE TESTOWE (${mockScenario})` : "Open-Meteo · IMGW-PIB",
+    source: mockScenario ? `DANE TESTOWE (${mockScenario})` : "Dane: MET Norway (CC BY 4.0) · ostrzeżenia: IMGW-PIB",
   };
   const forecast: Forecast = { ...base, voiceoverText: voiceText(base) };
   const out = path.join(__dirname, "..", "public", "data", "forecast.json");
@@ -267,7 +289,9 @@ async function main() {
   console.log(JSON.stringify(forecast, null, 2));
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+if (process.argv[1]?.includes("fetch-forecast")) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}

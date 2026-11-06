@@ -16,6 +16,10 @@ on:
         description: "Data prognozy RRRR-MM-DD (puste = dziś)"
         required: false
         default: ""
+      metricool:
+        description: "Wysłać do Metricool? (tak/nie)"
+        required: false
+        default: "tak"
 
 concurrency: prognoza
 
@@ -54,6 +58,8 @@ jobs:
       - name: Pobranie prognozy
         if: steps.guard.outputs.run == 'true'
         run: |
+          # MET Norway prosi, by nie odpytywać wszyscy równo o pełnej minucie
+          if [ "${{ github.event_name }}" = "schedule" ]; then sleep $((RANDOM % 90)); fi
           EXTRA=""
           if [ -n "${{ github.event.inputs.date }}" ]; then EXTRA="--date ${{ github.event.inputs.date }}"; fi
           if [ -n "${{ github.event.inputs.mock }}" ]; then
@@ -79,7 +85,7 @@ jobs:
       - name: Publiczny link do wideo (GitHub Release)
         # Metricool pobiera wideo z publicznego adresu. Repozytorium z filmami (MEDIA_REPO) musi być publiczne.
         id: media
-        if: steps.guard.outputs.run == 'true' && vars.METRICOOL_ENABLED == 'true'
+        if: steps.guard.outputs.run == 'true' && vars.METRICOOL_ENABLED == 'true' && github.event.inputs.metricool != 'nie'
         env:
           GH_TOKEN: ${{ secrets.MEDIA_REPO_TOKEN || github.token }}
           MEDIA_REPO: ${{ vars.MEDIA_REPO || github.repository }}
@@ -97,7 +103,7 @@ jobs:
       - name: Metricool – szkic albo publikacja
         # Włączenie: Variables → METRICOOL_ENABLED = true; Secrets → METRICOOL_USER_TOKEN;
         # Variables → METRICOOL_MODE = draft (szkic do zatwierdzenia) albo publish
-        if: steps.guard.outputs.run == 'true' && vars.METRICOOL_ENABLED == 'true' && github.event.inputs.mock == ''
+        if: steps.guard.outputs.run == 'true' && vars.METRICOOL_ENABLED == 'true' && github.event.inputs.mock == '' && github.event.inputs.metricool != 'nie'
         env:
           METRICOOL_USER_TOKEN: ${{ secrets.METRICOOL_USER_TOKEN }}
           METRICOOL_USER_ID: ${{ vars.METRICOOL_USER_ID || '5428059' }}

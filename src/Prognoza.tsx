@@ -235,9 +235,9 @@ const EndCardView: React.FC<{ card: EndCard; bg: string }> = ({ card, bg }) => {
             <Img src={staticFile(card.videoEndFrame)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </Sequence>
         )}
-        <div style={{ position: "absolute", top: SAFE.top + 90, left: 60, right: 60, textAlign: "center", ...text, fontWeight: 800, fontSize: 36, letterSpacing: 3, color: accent, textTransform: "uppercase", lineHeight: 1.3, whiteSpace: "nowrap", opacity: p, transform: `translateY(${(1 - p) * 14}px)`, textShadow: "0 2px 18px rgba(0,0,0,0.8)" }}>
+        {card.kicker && <div style={{ position: "absolute", top: SAFE.top + 90, left: 60, right: 60, textAlign: "center", ...text, fontWeight: 800, fontSize: 36, letterSpacing: 3, color: accent, textTransform: "uppercase", lineHeight: 1.3, whiteSpace: "nowrap", opacity: p, transform: `translateY(${(1 - p) * 14}px)`, textShadow: "0 2px 18px rgba(0,0,0,0.8)" }}>
           {card.kicker}
-        </div>
+        </div>}
       </AbsoluteFill>
     );
   }

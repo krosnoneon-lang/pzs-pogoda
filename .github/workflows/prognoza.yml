@@ -110,5 +110,6 @@ jobs:
           METRICOOL_USER_TOKEN: ${{ secrets.METRICOOL_USER_TOKEN }}
           METRICOOL_USER_ID: ${{ vars.METRICOOL_USER_ID || '5428059' }}
           METRICOOL_BLOG_ID: ${{ vars.METRICOOL_BLOG_ID || '7029617' }}
-          METRICOOL_MODE: ${{ vars.METRICOOL_MODE || 'draft' }}
+          # publish = publikacja automatyczna; zmień na draft, żeby wrócić do szkiców do zatwierdzenia
+          METRICOOL_MODE: publish
         run: npx tsx scripts/publish-metricool.ts "${{ steps.media.outputs.url }}"

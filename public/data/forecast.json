@@ -3,66 +3,66 @@
   "cities": [
     {
       "name": "Rzeszów",
-      "kind": "pochmurno",
-      "tDay": 5,
-      "tNight": -1,
-      "pop": 0,
-      "wind": 7,
-      "gust": 15,
-      "windDir": "zach."
-    },
-    {
-      "name": "Krosno",
-      "kind": "pochmurno",
-      "tDay": 4,
-      "tNight": -2,
-      "pop": 0,
-      "wind": 7,
-      "gust": 15,
-      "windDir": "zach."
-    },
-    {
-      "name": "Przemyśl",
-      "kind": "pochmurno",
-      "tDay": 6,
-      "tNight": -2,
-      "pop": 0,
-      "wind": 10,
-      "gust": 18,
-      "windDir": "pn.-zach."
-    },
-    {
-      "name": "Tarnobrzeg",
-      "kind": "pochmurno",
+      "kind": "slonce",
       "tDay": 5,
       "tNight": -3,
       "pop": 0,
-      "wind": 7,
-      "gust": 13,
+      "wind": 8,
+      "gust": 8,
+      "windDir": "pd."
+    },
+    {
+      "name": "Krosno",
+      "kind": "slonce",
+      "tDay": 5,
+      "tNight": -3,
+      "pop": 0,
+      "wind": 6,
+      "gust": 6,
+      "windDir": "pd.-wsch."
+    },
+    {
+      "name": "Przemyśl",
+      "kind": "slonce",
+      "tDay": 5,
+      "tNight": -3,
+      "pop": 0,
+      "wind": 5,
+      "gust": 5,
       "windDir": "pd.-zach."
     },
     {
-      "name": "Polańczyk",
-      "kind": "pochmurno",
+      "name": "Tarnobrzeg",
+      "kind": "slonce",
       "tDay": 5,
-      "tNight": -2,
+      "tNight": -3,
       "pop": 0,
-      "wind": 8,
-      "gust": 19,
+      "wind": 5,
+      "gust": 5,
+      "windDir": "pn."
+    },
+    {
+      "name": "Polańczyk",
+      "kind": "slonce",
+      "tDay": 5,
+      "tNight": -3,
+      "pop": 0,
+      "wind": 10,
+      "gust": 10,
       "windDir": "pn.-wsch."
     },
     {
       "name": "Dukla",
-      "kind": "pochmurno",
+      "kind": "slonce",
       "tDay": 4,
-      "tNight": -1,
+      "tNight": -3,
       "pop": 0,
-      "wind": 6,
-      "gust": 16,
-      "windDir": "pn."
+      "wind": 8,
+      "gust": 8,
+      "windDir": "wsch."
     }
   ],
-  "background": "pochmurno",
+  "background": "slonce",
   "sunrise": "06:31",
   "sunset": "15:59",
   "fullMoon": false,
@@ -77,6 +77,6 @@
   "dayNote": null,
   "maxim": "Kto rano wstaje, temu Pan Bóg daje.",
   "voiceover": false,
-  "source": "Open-Meteo · IMGW-PIB",
-  "voiceoverText": "Dzień dobry, Podkarpacie! Dziś sobota. Pochmurno w większości regionu. W Rzeszowie w dzień do 5 stopni, w nocy minus 1 stopień. Uwaga, IMGW ostrzega: gęsta mgła. Myśl na dziś: Kto rano wstaje, temu Pan Bóg daje. Miłego dnia!"
+  "source": "Dane: MET Norway (CC BY 4.0) · ostrzeżenia: IMGW-PIB",
+  "voiceoverText": "Dzień dobry, Podkarpacie! Dziś sobota. Słonecznie w większości regionu. W Rzeszowie w dzień do 5 stopni, w nocy minus 3 stopnie. Uwaga, IMGW ostrzega: gęsta mgła. Myśl na dziś: Kto rano wstaje, temu Pan Bóg daje. Miłego dnia!"
 }

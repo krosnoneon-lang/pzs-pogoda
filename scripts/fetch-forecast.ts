@@ -154,7 +154,8 @@ async function fetchWarnings(): Promise<Warning[]> {
       const to = Date.parse(String(w.obowiazuje_do).replace(" ", "T"));
       if (!(from < dayEnd && to > dayStart)) continue;
       const hit = CITIES.filter((c) => teryt.some((t) => t.startsWith(CITY_TERYT[c.name]))).map((c) => c.name);
-      const event = String(w.nazwa_zdarzenia ?? "Ostrzeżenie").trim();
+      const until = to < dayEnd ? ` do ${hm(new Date(to))}` : "";
+      const event = `${String(w.nazwa_zdarzenia ?? "Ostrzeżenie").trim()}${until}`;
       const level = Number(w.stopien ?? 1);
       const prev = out.find((o) => o.event === event && o.level === level);
       const area = hit.length ? hit.join(", ") : "część regionu";

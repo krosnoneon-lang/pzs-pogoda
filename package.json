@@ -10,6 +10,8 @@
   "private": true,
   "dependencies": {
     "@remotion/cli": "4.0.541",
+    "@remotion/fonts": "^4.0.541",
+    "astronomy-engine": "^2.1.19",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "remotion": "4.0.541"
@@ -20,13 +22,18 @@
     "@types/web": "0.0.166",
     "eslint": "10.12.0",
     "prettier": "3.8.1",
+    "tsx": "^4.23.15",
     "typescript": "5.9.3"
   },
   "scripts": {
     "dev": "remotion studio",
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",
-    "lint": "eslint src && tsc"
+    "lint": "eslint src && tsc",
+    "prognoza": "tsx scripts/fetch-forecast.ts",
+    "prognoza:test": "tsx scripts/fetch-forecast.ts --mock zima",
+    "render": "remotion render PrognozaPogody out/prognoza.mp4 --props=public/data/forecast.json --codec=h264 --crf=20",
+    "metricool:test": "METRICOOL_DRY=1 tsx scripts/publish-metricool.ts https://example.com/prognoza.mp4"
   },
   "allowScripts": {
     "esbuild": false

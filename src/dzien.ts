@@ -1,0 +1,90 @@
+/**
+ * „Na dobry początek dnia” – treści do planszy i (w przyszłości) do lektora.
+ * Oba zbiory edytujesz tutaj. Klucz dnia: "MM-DD".
+ * Święta ruchome (Wielkanoc, Boże Ciało itp.) dopisz ręcznie na dany rok w EXTRA_DAYS.
+ */
+
+export const DAYS: Record<string, string> = {
+  "01-01": "Nowy Rok",
+  "01-21": "Dzień Babci",
+  "01-22": "Dzień Dziadka",
+  "02-14": "Walentynki",
+  "03-08": "Dzień Kobiet",
+  "03-20": "Międzynarodowy Dzień Szczęścia",
+  "03-21": "Pierwszy dzień wiosny",
+  "03-22": "Światowy Dzień Wody",
+  "04-07": "Światowy Dzień Zdrowia",
+  "04-22": "Dzień Ziemi",
+  "05-01": "Święto Pracy",
+  "05-03": "Święto Konstytucji 3 Maja",
+  "05-04": "Dzień Strażaka",
+  "05-20": "Światowy Dzień Pszczół",
+  "05-26": "Dzień Matki",
+  "06-01": "Dzień Dziecka",
+  "06-05": "Światowy Dzień Środowiska",
+  "06-23": "Dzień Ojca",
+  "08-15": "Święto Wojska Polskiego",
+  "09-22": "Europejski Dzień bez Samochodu",
+  "09-30": "Dzień Chłopaka",
+  "10-01": "Międzynarodowy Dzień Kawy",
+  "10-04": "Światowy Dzień Zwierząt",
+  "10-14": "Dzień Edukacji Narodowej",
+  "11-01": "Wszystkich Świętych",
+  "11-11": "Narodowe Święto Niepodległości",
+  "11-21": "Światowy Dzień Życzliwości i Pozdrowień",
+  "11-25": "Dzień Pluszowego Misia",
+  "12-05": "Międzynarodowy Dzień Wolontariusza",
+  "12-06": "Mikołajki",
+  "12-24": "Wigilia",
+  "12-25": "Boże Narodzenie",
+  "12-26": "Drugi dzień Świąt",
+  "12-31": "Sylwester",
+};
+
+/** Daty konkretnego roku: "YYYY-MM-DD" → tekst (ma pierwszeństwo przed DAYS) */
+export const EXTRA_DAYS: Record<string, string> = {
+  // "2027-03-28": "Wielkanoc",
+};
+
+/** Maksymy – polskie przysłowia (domena publiczna). Rotacja według dnia roku. */
+export const MAXIMS: string[] = [
+  "Kto rano wstaje, temu Pan Bóg daje.",
+  "Gdzie dwóch się bije, tam trzeci korzysta.",
+  "Lepszy wróbel w garści niż gołąb na dachu.",
+  "Kropla drąży skałę.",
+  "Bez pracy nie ma kołaczy.",
+  "Co nagle, to po diable.",
+  "Prawdziwych przyjaciół poznaje się w biedzie.",
+  "Darowanemu koniowi nie zagląda się w zęby.",
+  "Gość w dom, Bóg w dom.",
+  "Kto pyta, nie błądzi.",
+  "Nie chwal dnia przed zachodem słońca.",
+  "Śpiesz się powoli.",
+  "Ziarnko do ziarnka, a zbierze się miarka.",
+  "Mądry Polak po szkodzie – bądź mądry przed.",
+  "Wszędzie dobrze, ale w domu najlepiej.",
+  "Jak sobie pościelesz, tak się wyśpisz.",
+  "Nie od razu Kraków zbudowano.",
+  "Czego się Jaś nie nauczy, tego Jan nie będzie umiał.",
+  "Dobre słowo nic nie kosztuje, a wiele daje.",
+  "Kto sieje wiatr, zbiera burzę – siej życzliwość.",
+  "Uśmiech nic nie kosztuje.",
+  "Dzień bez uśmiechu jest dniem straconym.",
+  "Kto ma wiedzę, ten ma moc.",
+  "Lepiej późno niż wcale.",
+  "Apetyt rośnie w miarę jedzenia.",
+  "Zgoda buduje, niezgoda rujnuje.",
+  "Cierpliwość jest gorzka, ale jej owoc słodki.",
+  "Nie ma tego złego, co by na dobre nie wyszło.",
+  "Każdy jest kowalem swojego losu.",
+  "Pierwsze koty za płoty.",
+  "Co masz zrobić jutro, zrób dziś.",
+];
+
+export const pickDay = (dateIso: string): string | null =>
+  EXTRA_DAYS[dateIso] ?? DAYS[dateIso.slice(5)] ?? null;
+
+export const pickMaxim = (dateIso: string): string => {
+  const doy = Math.floor((Date.parse(dateIso) - Date.parse(`${dateIso.slice(0, 4)}-01-01`)) / 864e5);
+  return MAXIMS[doy % MAXIMS.length];
+};

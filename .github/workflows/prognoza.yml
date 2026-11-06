@@ -1,0 +1,100 @@
+name: Prognoza pogody Stories
+
+on:
+  schedule:
+    # 00:01 czasu warszawskiego: zimą = 23:01 UTC, latem = 22:01 UTC.
+    # Odpalamy oba, skrypt sam pomija ten, który nie wypada po północy w Warszawie.
+    - cron: "1 22 * * *"
+    - cron: "1 23 * * *"
+  workflow_dispatch:
+    inputs:
+      mock:
+        description: "Dane testowe (zima/lato/burza/mgla) – puste = prawdziwa prognoza"
+        required: false
+        default: ""
+
+concurrency: prognoza
+
+permissions:
+  contents: write
+
+jobs:
+  prognoza:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Czy już jest północ w Warszawie?
+        id: guard
+        run: |
+          H=$(TZ=Europe/Warsaw date +%H)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$H" = "00" ]; then
+            echo "run=true" >> $GITHUB_OUTPUT
+          else
+            echo "Godzina w Warszawie: $H – pomijam ten przebieg."
+            echo "run=false" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.run == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.guard.outputs.run == 'true'
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalacja
+        if: steps.guard.outputs.run == 'true'
+        run: npm ci && npx remotion browser ensure
+
+      - name: Pobranie prognozy
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          if [ -n "${{ github.event.inputs.mock }}" ]; then
+            npx tsx scripts/fetch-forecast.ts --mock "${{ github.event.inputs.mock }}"
+          else
+            npx tsx scripts/fetch-forecast.ts
+          fi
+
+      - name: Render wideo
+        if: steps.guard.outputs.run == 'true'
+        run: npx remotion render PrognozaPogody out/prognoza.mp4 --props=public/data/forecast.json --codec=h264 --crf=20
+
+      - name: Zapis wideo jako artefakt (do podglądu)
+        if: steps.guard.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: prognoza-${{ github.run_id }}
+          path: |
+            out/prognoza.mp4
+            public/data/forecast.json
+          retention-days: 14
+
+      - name: Publiczny link do wideo (GitHub Release)
+        # Metricool pobiera wideo z publicznego adresu. Repozytorium z filmami (MEDIA_REPO) musi być publiczne.
+        id: media
+        if: steps.guard.outputs.run == 'true' && vars.METRICOOL_ENABLED == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.MEDIA_REPO_TOKEN || github.token }}
+          MEDIA_REPO: ${{ vars.MEDIA_REPO || github.repository }}
+        run: |
+          D=$(node -e "console.log(require('./public/data/forecast.json').date)")
+          TAG="prognoza-$D-${{ github.run_id }}"
+          cp out/prognoza.mp4 "out/prognoza-$D.mp4"
+          gh release create "$TAG" "out/prognoza-$D.mp4" --repo "$MEDIA_REPO" --title "Prognoza $D" --notes "auto" --latest=false
+          echo "url=https://github.com/$MEDIA_REPO/releases/download/$TAG/prognoza-$D.mp4" >> $GITHUB_OUTPUT
+          # sprzątanie: filmy starsze niż 7 dni
+          gh release list --repo "$MEDIA_REPO" --limit 100 --json tagName,createdAt \
+            --jq '.[] | select(.tagName|startswith("prognoza-")) | select((now - (.createdAt|fromdate)) > 604800) | .tagName' \
+            | xargs -r -n1 gh release delete --repo "$MEDIA_REPO" --cleanup-tag -y
+
+      - name: Metricool – szkic albo publikacja
+        # Włączenie: Variables → METRICOOL_ENABLED = true; Secrets → METRICOOL_USER_TOKEN;
+        # Variables → METRICOOL_MODE = draft (szkic do zatwierdzenia) albo publish
+        if: steps.guard.outputs.run == 'true' && vars.METRICOOL_ENABLED == 'true' && github.event.inputs.mock == ''
+        env:
+          METRICOOL_USER_TOKEN: ${{ secrets.METRICOOL_USER_TOKEN }}
+          METRICOOL_USER_ID: ${{ vars.METRICOOL_USER_ID || '5428059' }}
+          METRICOOL_BLOG_ID: ${{ vars.METRICOOL_BLOG_ID || '7029617' }}
+          METRICOOL_MODE: ${{ vars.METRICOOL_MODE || 'draft' }}
+        run: npx tsx scripts/publish-metricool.ts "${{ steps.media.outputs.url }}"

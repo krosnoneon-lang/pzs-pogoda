@@ -1,54 +1,54 @@
-# Remotion video
+# PZS – Prognoza pogody Stories (Remotion)
 
-<p align="center">
-  <a href="https://github.com/remotion-dev/logo">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/remotion-dev/logo/raw/main/animated-logo-banner-dark.apng">
-      <img alt="Animated Remotion Logo" src="https://github.com/remotion-dev/logo/raw/main/animated-logo-banner-light.gif">
-    </picture>
-  </a>
-</p>
+Codzienne pionowe wideo (1080×1920, 30 kl./s, ok. 30 s) z prognozą dla 6 miejscowości,
+publikowane jako Stories na FB Podkarpacie ze Smakiem. Specyfikacja: Notion
+„PZS | Prognoza pogody Stories – specyfikacja szablonu i automatyzacji”.
 
-Welcome to your Remotion project!
+## Oś czasu (ok. 30 s)
+0–15 s prognoza (logo, data, 6 miast, słońce/pełnia/ostrzeżenia) → 15–22 s „Na dobry początek dnia”
+(święto dnia + myśl na dziś, plik `src/dzien.ts`) → 22–30 s reklama albo projekt.
+Lektor: skrypt co dzień zapisuje `voiceoverText` w forecast.json; gdy dodamy plik `public/data/lektor.mp3`,
+odtworzy się sam, a muzyka ściszy się pod głos.
 
-## Commands
+## Co edytujesz – tylko `src/config.ts`
+- `CITIES` – miasta i kolejność, `SUN_CITY` – miasto dla wschodu/zachodu słońca
+- `BACKGROUNDS` – 9 plików teł w `public/tla/` (nazwy jak na Dysku: 01_slonce.png … 09_zamiec.png)
+- `LOGO` – `public/logo/pzs-logo-biale.png` (całe białe, także „ze smakiem”)
+- `MUSIC` – `public/muzyka/skyline-portfolio.wav`, `enabled: true` po wgraniu
+- `TIMING` – długości ujęć
+- `ADS` – karty reklam; `ACTIVE_AD` – reklama lecąca codziennie DO MOMENTU ZMIANY;
+  `AD_SCHEDULE` – kampanie z datami (mają pierwszeństwo); brak obu → rotacja `PROJECT_CARDS`
+- `PUBLISH` – sieci w Metricool (FB Stories; IG/TikTok/YouTube gotowe do odkomentowania) i godzina publikacji
 
-**Install Dependencies**
-
-```console
-npm i --loglevel=error
+## Uruchomienie lokalnie
+```bash
+npm i
+npm run prognoza:test        # dane testowe (zima); też: npx tsx scripts/fetch-forecast.ts --mock lato|burza|mgla --pelnia
+npm run prognoza             # prawdziwa prognoza (Open-Meteo + IMGW)
+npx remotion studio          # podgląd
+npm run render               # out/prognoza.mp4
 ```
 
-**Start Preview**
+## Dane
+- Prognoza: Open-Meteo (bez klucza). Dzień = maks. dnia, noc = min. 21:00–06:00.
+- Ikony: kody WMO → 9 kategorii (deszcz przy ≤ −1 °C = gołoledź, śnieg z porywami ≥ 50 km/h = zamieć).
+- Tło: kategoria dominująca w regionie (remis → Rzeszów); przełącznik `BACKGROUND_MODE`.
+- Ostrzeżenia IMGW: woj. podkarpackie, ważne danego dnia, maks. 2 najwyższe stopnie.
+- Wschód/zachód słońca i pełnia: liczone lokalnie (astronomy-engine).
 
-```console
-npm run dev
-```
+## Automatyzacja (GitHub Actions → Metricool)
+`.github/workflows/prognoza.yml` – codziennie 00:01 czasu warszawskiego (obsługuje zmianę czasu):
+prognoza → render → film jako publiczny plik (GitHub Release, sprzątanie po 7 dniach) → Metricool.
+GitHub NIE dostaje dostępu do Facebooka/TikToka – tylko token API Metricool.
 
-**Render video**
+Konfiguracja repozytorium (Settings → Secrets and variables → Actions):
+- Secret `METRICOOL_USER_TOKEN` – token z Metricool (ustawienia konta → API)
+- Variable `METRICOOL_ENABLED` = `true`
+- Variable `METRICOOL_MODE` = `draft` (szkic w planerze do zatwierdzenia) → po testach `publish`
+- (opcjonalnie) `METRICOOL_BLOG_ID` = 7029617, `METRICOOL_USER_ID` = 5428059 – już domyślne
+- Filmy muszą mieć publiczny adres: repozytorium publiczne ALBO osobne publiczne repo na filmy
+  (Variable `MEDIA_REPO` = `konto/pzs-media`, Secret `MEDIA_REPO_TOKEN` z prawem zapisu do niego)
 
-```console
-npx remotion render
-```
+Test bez wysyłania: `npm run metricool:test`. Każdy przebieg zostawia film jako artefakt w zakładce Actions (14 dni).
 
-**Upgrade Remotion**
-
-```console
-npx remotion upgrade
-```
-
-## Docs
-
-Get started with Remotion by reading the [fundamentals page](https://www.remotion.dev/docs/the-fundamentals).
-
-## Help
-
-We provide help on our [Discord server](https://discord.gg/6VzzNDwUwV).
-
-## Issues
-
-Found an issue with Remotion? [File an issue here](https://github.com/remotion-dev/remotion/issues/new).
-
-## License
-
-Note that for some entities a company license is needed. [Read the terms here](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md).
+Licencja Remotion: darmowa dla osób prywatnych i firm do 3 osób; większe firmy potrzebują licencji firmowej (remotion.pro).

@@ -1,0 +1,82 @@
+{
+  "date": "2026-11-07",
+  "cities": [
+    {
+      "name": "Rzeszów",
+      "kind": "czesciowe",
+      "tDay": 6,
+      "tNight": -4,
+      "pop": 1,
+      "wind": 9,
+      "gust": 15,
+      "windDir": "wsch."
+    },
+    {
+      "name": "Krosno",
+      "kind": "czesciowe",
+      "tDay": 6,
+      "tNight": -1,
+      "pop": 0,
+      "wind": 9,
+      "gust": 9,
+      "windDir": "wsch."
+    },
+    {
+      "name": "Przemyśl",
+      "kind": "slonce",
+      "tDay": 6,
+      "tNight": -4,
+      "pop": 1,
+      "wind": -1,
+      "gust": 0,
+      "windDir": ""
+    },
+    {
+      "name": "Tarnobrzeg",
+      "kind": "slonce",
+      "tDay": 6,
+      "tNight": -3,
+      "pop": 0,
+      "wind": -1,
+      "gust": 0,
+      "windDir": ""
+    },
+    {
+      "name": "Polańczyk",
+      "kind": "mgla",
+      "tDay": 5,
+      "tNight": -3,
+      "pop": 0,
+      "wind": 11,
+      "gust": 11,
+      "windDir": "pn.-wsch."
+    },
+    {
+      "name": "Dukla",
+      "kind": "czesciowe",
+      "tDay": 6,
+      "tNight": -4,
+      "pop": 0,
+      "wind": 7,
+      "gust": 20,
+      "windDir": "pn."
+    }
+  ],
+  "background": "czesciowe",
+  "sunrise": "06:31",
+  "sunset": "15:59",
+  "fullMoon": false,
+  "warnings": [
+    {
+      "event": "Gęsta mgła do godz. 10:00",
+      "level": 1,
+      "area": "22 powiaty, m.in. Rzeszów, Krosno, Przemyśl, Tarnobrzeg"
+    }
+  ],
+  "endCard": "pzs",
+  "dayNote": null,
+  "maxim": "Kto rano wstaje, temu Pan Bóg daje.",
+  "voiceover": false,
+  "source": "Interia · AccuWeather · yr.no · Ventusky · IMGW (pobrane 06.11 wieczorem)",
+  "voiceoverText": "Dzień dobry, Podkarpacie! Dziś sobota. Słonecznie w większości regionu. W Rzeszowie w dzień do 27 stopni, w nocy 15 stopni. Myśl na dziś: Kto rano wstaje, temu Pan Bóg daje. Miłego dnia!"
+}

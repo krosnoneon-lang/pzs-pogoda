@@ -68,13 +68,32 @@ async function getJson(url: string) {
   return r.json();
 }
 
+/**
+ * Kod pogody „na dzień” z godzin 08–18 zamiast dziennego kodu Open-Meteo (ten bierze
+ * najgorszy stan doby, więc sama poranna mgła oznaczała cały dzień jako mglisty).
+ * Opady/burza w ciągu dnia wygrywają; poza tym – stan, który trwa najdłużej.
+ */
+const SEVERITY = (c: number) => ([95, 96, 99].includes(c) ? 5 : c >= 71 && c <= 86 && ![80, 81, 82].includes(c) ? 4 : [56, 57, 66, 67].includes(c) ? 4 : c >= 51 ? 3 : 0);
+function dayCode(d: any): number {
+  const codes: number[] = d.hourly.time
+    .map((t: string, k: number) => ({ t, c: d.hourly.weather_code[k] }))
+    .filter((x: { t: string }) => x.t >= `${DATE}T08:00` && x.t <= `${DATE}T18:00`)
+    .map((x: { c: number }) => x.c);
+  if (!codes.length) return d.daily.weather_code[d.daily.time.indexOf(DATE)];
+  const wet = codes.filter((c) => SEVERITY(c) > 0);
+  if (wet.length >= 2) return wet.sort((a, b) => SEVERITY(b) - SEVERITY(a) || b - a)[0];
+  const count = new Map<number, number>();
+  codes.forEach((c) => count.set(c, (count.get(c) ?? 0) + 1));
+  return [...count.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+}
+
 async function fetchCities(): Promise<CityForecast[]> {
   const lat = CITIES.map((c) => c.lat).join(",");
   const lon = CITIES.map((c) => c.lon).join(",");
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
     `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant` +
-    `&hourly=temperature_2m&timezone=${encodeURIComponent(TZ)}&start_date=${DATE}&end_date=${nextDay(DATE)}&wind_speed_unit=kmh`;
+    `&hourly=temperature_2m,weather_code&timezone=${encodeURIComponent(TZ)}&start_date=${DATE}&end_date=${nextDay(DATE)}&wind_speed_unit=kmh`;
   const data = await getJson(url);
   const arr = Array.isArray(data) ? data : [data];
   return arr.map((d: any, i: number) => {
@@ -89,7 +108,7 @@ async function fetchCities(): Promise<CityForecast[]> {
     const gust = Math.round(day.wind_gusts_10m_max[di]);
     return {
       name: CITIES[i].name,
-      kind: kindFromWmo(day.weather_code[di], tMinDay, gust),
+      kind: kindFromWmo(dayCode(d), tMinDay, gust),
       tDay: Math.round(day.temperature_2m_max[di]),
       tNight: Math.round(hrs.length ? Math.min(...hrs) : tMinDay),
       pop: Math.round(day.precipitation_probability_max[di] ?? 0),

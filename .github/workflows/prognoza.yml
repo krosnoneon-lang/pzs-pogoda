@@ -30,6 +30,8 @@ jobs:
   prognoza:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      TZ: Europe/Warsaw
     steps:
       - name: Czy już jest północ w Warszawie?
         id: guard

@@ -2,7 +2,7 @@ name: Prognoza pogody Stories
 
 on:
   schedule:
-    # Cel: zaraz po północy w Warszawie (zimą 23:01 UTC, latem 22:01 UTC).
+    # Render zaraz po północy w Warszawie; publikację Metricool planuje na PUBLISH.time (06:00).
     # GitHub potrafi spóźnić harmonogram o kilka godzin, więc są zapasowe terminy.
     # Publikuje pierwszy przebieg po północy; kolejne widzą, że dziś już poszło, i się pomijają.
     - cron: "1 22 * * *"

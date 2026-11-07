@@ -177,7 +177,7 @@ export const PUBLISH = {
    * Godzina publikacji (czas Warszawy) w dniu prognozy, np. "06:00".
    * null = zaraz po wyrenderowaniu (ok. 00:15). Stories wiszą 24 h od publikacji.
    */
-  time: null as string | null,
+  time: "06:00" as string | null,
   /** minimalny zapas od „teraz” – Metricool nie przyjmie daty z przeszłości */
   minDelayMinutes: 5,
   /** opis dla sieci, które go mają (TikTok, Reels, YouTube Shorts) */

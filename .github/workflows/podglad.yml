@@ -1,0 +1,28 @@
+name: Podgląd prognozy (bez publikacji)
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Data prognozy RRRR-MM-DD (puste = jutro)"
+        required: false
+        default: ""
+
+jobs:
+  podglad:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TZ: Europe/Warsaw
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Prognoza
+        run: |
+          D="${{ github.event.inputs.date }}"; [ -z "$D" ] && D=$(date -d tomorrow +%F)
+          npx tsx scripts/fetch-forecast.ts --date "$D"
+          cat public/data/forecast.json

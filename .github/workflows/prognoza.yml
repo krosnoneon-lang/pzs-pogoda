@@ -2,10 +2,14 @@ name: Prognoza pogody Stories
 
 on:
   schedule:
-    # 00:01 czasu warszawskiego: zimą = 23:01 UTC, latem = 22:01 UTC.
-    # Odpalamy oba, skrypt sam pomija ten, który nie wypada po północy w Warszawie.
+    # Cel: zaraz po północy w Warszawie (zimą 23:01 UTC, latem 22:01 UTC).
+    # GitHub potrafi spóźnić harmonogram o kilka godzin, więc są zapasowe terminy.
+    # Publikuje pierwszy przebieg po północy; kolejne widzą, że dziś już poszło, i się pomijają.
     - cron: "1 22 * * *"
     - cron: "1 23 * * *"
+    - cron: "1 1 * * *"
+    - cron: "1 3 * * *"
+    - cron: "1 5 * * *"
   workflow_dispatch:
     inputs:
       mock:
@@ -33,15 +37,24 @@ jobs:
     env:
       TZ: Europe/Warsaw
     steps:
-      - name: Czy już jest północ w Warszawie?
+      - name: Czy dzisiejsza prognoza już poszła?
         id: guard
+        env:
+          GH_TOKEN: ${{ secrets.MEDIA_REPO_TOKEN || github.token }}
+          MEDIA_REPO: ${{ vars.MEDIA_REPO || github.repository }}
         run: |
-          H=$(TZ=Europe/Warsaw date +%H)
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$H" = "00" ]; then
-            echo "run=true" >> $GITHUB_OUTPUT
-          else
-            echo "Godzina w Warszawie: $H – pomijam ten przebieg."
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "run=true" >> $GITHUB_OUTPUT; exit 0; fi
+          H=$(TZ=Europe/Warsaw date +%H); D=$(TZ=Europe/Warsaw date +%F)
+          if [ "$H" -ge 12 ]; then
+            echo "W Warszawie jest $H:xx (przed północą) – czekam na kolejny termin."
+            echo "run=false" >> $GITHUB_OUTPUT; exit 0
+          fi
+          if gh release list --repo "$MEDIA_REPO" --limit 30 --json tagName --jq '.[].tagName' | grep -q "^prognoza-$D-"; then
+            echo "Prognoza na $D już opublikowana – pomijam."
             echo "run=false" >> $GITHUB_OUTPUT
+          else
+            echo "Publikuję prognozę na $D (godz. $H w Warszawie)."
+            echo "run=true" >> $GITHUB_OUTPUT
           fi
 
       - uses: actions/checkout@v4

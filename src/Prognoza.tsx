@@ -44,14 +44,21 @@ for (const w of ["600", "700", "800", "900"]) {
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 const sec = (s: number) => Math.round(s * FPS);
 
-/* ---------- oś czasu ---------- */
-export const FORECAST_FRAMES = sec(TIMING.intro + 6 * TIMING.cityStagger + 0.6 + TIMING.hold);
-export const MORNING_FRAMES = sec(TIMING.morning);
-export const END_FRAMES = sec(TIMING.endCard);
+/* ---------- oś czasu (wydłuża się, gdy lektor mówi dłużej – nigdy nie przyspieszamy ani nie ucinamy) ---------- */
 const XF = sec(TIMING.crossfade);
-export const MORNING_FROM = FORECAST_FRAMES - XF;
-export const END_FROM = MORNING_FROM + MORNING_FRAMES - XF;
-export const TOTAL_FRAMES = END_FROM + END_FRAMES;
+const BASE_FORECAST = sec(TIMING.intro + 6 * TIMING.cityStagger + 0.6 + TIMING.hold);
+export const timeline = (f?: Partial<Forecast>) => {
+  const baseEnd = BASE_FORECAST - XF + sec(TIMING.morning) - XF;
+  const needEnd = f?.voiceSec ? sec(VOICEOVER.startAt + f.voiceSec + 0.6) : 0;
+  const extra = Math.max(0, needEnd - baseEnd);
+  const FORECAST_FRAMES = BASE_FORECAST + Math.round(extra * 0.6);
+  const MORNING_FRAMES = sec(TIMING.morning) + (extra - Math.round(extra * 0.6));
+  const END_FRAMES = Math.max(sec(TIMING.endCard), f?.ctaSec ? sec(VOICEOVER.ctaStartAt + f.ctaSec + 1.2) : 0);
+  const MORNING_FROM = FORECAST_FRAMES - XF;
+  const END_FROM = MORNING_FROM + MORNING_FRAMES - XF;
+  return { FORECAST_FRAMES, MORNING_FRAMES, END_FRAMES, MORNING_FROM, END_FROM, TOTAL_FRAMES: END_FROM + END_FRAMES };
+};
+export const TOTAL_FRAMES = timeline().TOTAL_FRAMES;
 
 /* ---------- formatowanie ---------- */
 const temp = (t: number) => `${t < 0 ? "−" : ""}${Math.abs(t)}°`;
@@ -325,13 +332,12 @@ export const Prognoza: React.FC<Forecast> = (f) => {
   const bg = BACKGROUNDS[f.background];
   const card = ALL_CARDS().find((c) => c.id === f.endCard) ?? PROJECT_CARDS[0];
   const fadeIn = (from: number) => interpolate(frame, [from, from + XF], [0, 1], clamp);
+  const { FORECAST_FRAMES, MORNING_FRAMES, MORNING_FROM, END_FROM, TOTAL_FRAMES } = timeline(f);
   const forecastOpacity = Math.min(interpolate(frame, [0, 10], [0, 1], { ...clamp, easing: Easing.out(Easing.quad) }), 1 - fadeIn(MORNING_FROM));
   const musicLevel = f.voiceover ? VOICEOVER.musicUnderVoice : MUSIC.volume;
   // lektor musi zmieścić się przed planszą końcową, CTA – przed końcem filmu
-  const fitRate = (dur: number | undefined, available: number) =>
-    dur ? Math.min(VOICEOVER.maxRate, Math.max(1, dur / available)) : 1;
-  const voiceRate = fitRate(f.voiceSec, END_FROM / FPS - VOICEOVER.startAt - 0.3);
-  const ctaRate = fitRate(f.ctaSec, (TOTAL_FRAMES - END_FROM) / FPS - VOICEOVER.ctaStartAt - 0.4);
+  const voiceRate = 1;
+  const ctaRate = 1;
 
   return (
     <AbsoluteFill style={{ background: "#000" }}>
@@ -361,6 +367,7 @@ export const Prognoza: React.FC<Forecast> = (f) => {
       {MUSIC.enabled && (
         <Audio
           src={staticFile(MUSIC.file)}
+          loop
           startFrom={sec(MUSIC.startAt)}
           volume={(fr) => musicLevel * interpolate(fr, [0, 8, TOTAL_FRAMES - sec(MUSIC.fadeOutSeconds), TOTAL_FRAMES], [0, 1, 1, 0], clamp)}
         />

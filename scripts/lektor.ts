@@ -26,9 +26,15 @@ async function download(url: string): Promise<Buffer> {
   return Buffer.from(await r.arrayBuffer());
 }
 const duration = (file: string): number | undefined => {
-  try {
-    return Number(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${file}"`).toString().trim()) || undefined;
-  } catch { return undefined; }
+  // ffprobe dostarczany z Remotion (na runnerze GitHuba systemowego może nie być)
+  for (const cmd of [`npx remotion ffprobe`, `ffprobe`]) {
+    try {
+      const out = execSync(`${cmd} -v error -show_entries format=duration -of csv=p=0 "${file}"`, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim().split("\n").pop();
+      const n = Number(out);
+      if (n > 0) return n;
+    } catch { /* następna próba */ }
+  }
+  return undefined;
 };
 
 async function main() {

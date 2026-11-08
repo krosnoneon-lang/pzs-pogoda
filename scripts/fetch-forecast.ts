@@ -203,23 +203,51 @@ function pickEndCard(): string {
   return ready[doy % ready.length].id;
 }
 
+/* ---------- lektor: liczby słownie (ElevenLabs lepiej czyta słowa niż cyfry) ---------- */
+const ONES = ["zero", "jeden", "dwa", "trzy", "cztery", "pięć", "sześć", "siedem", "osiem", "dziewięć", "dziesięć", "jedenaście", "dwanaście", "trzynaście", "czternaście", "piętnaście", "szesnaście", "siedemnaście", "osiemnaście", "dziewiętnaście"];
+const TENS = ["", "", "dwadzieścia", "trzydzieści", "czterdzieści", "pięćdziesiąt"];
+const num = (n: number): string => (n < 20 ? ONES[n] : TENS[Math.floor(n / 10)] + (n % 10 ? " " + ONES[n % 10] : ""));
 const tSay = (t: number) => {
-  const n = Math.abs(t);
+  const n = Math.abs(Math.round(t));
   const unit = n === 1 ? "stopień" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? "stopnie" : "stopni";
-  return `${t < 0 ? "minus " : ""}${n} ${unit}`;
+  return `${t < 0 ? "minus " : ""}${num(n)} ${unit}`;
+};
+/** liczebnik porządkowy w dopełniaczu: „ósmego” (listopada) */
+const ORD_GEN = ["", "pierwszego", "drugiego", "trzeciego", "czwartego", "piątego", "szóstego", "siódmego", "ósmego", "dziewiątego", "dziesiątego", "jedenastego", "dwunastego", "trzynastego", "czternastego", "piętnastego", "szesnastego", "siedemnastego", "osiemnastego", "dziewiętnastego", "dwudziestego"];
+const dayGen = (d: number) => (d <= 20 ? ORD_GEN[d] : (d < 30 ? "dwudziestego " : "trzydziestego ") + (d % 10 ? ORD_GEN[d % 10] : "")).trim();
+const MONTH_GEN = ["stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia", "września", "października", "listopada", "grudnia"];
+/** godzina: „szósta trzydzieści trzy”, „jedenastej” (po „do”) */
+const HOUR_GEN = ["północy", "pierwszej", "drugiej", "trzeciej", "czwartej", "piątej", "szóstej", "siódmej", "ósmej", "dziewiątej", "dziesiątej", "jedenastej", "dwunastej", "trzynastej", "czternastej", "piętnastej", "szesnastej", "siedemnastej", "osiemnastej", "dziewiętnastej", "dwudziestej", "dwudziestej pierwszej", "dwudziestej drugiej", "dwudziestej trzeciej"];
+const minSay = (m: number) => (m === 0 ? "" : " " + (m < 10 ? "zero " + num(m) : num(m)));
+const timeGen = (hm: string) => { const [h, m] = hm.split(":").map(Number); return HOUR_GEN[h] + minSay(m); };
+const LOC: Record<string, string> = { "Rzeszów": "w Rzeszowie", "Krosno": "w Krośnie", "Przemyśl": "w Przemyślu", "Tarnobrzeg": "w Tarnobrzegu", "Polańczyk": "w Polańczyku", "Dukla": "w Dukli" };
+const KIND_SAY: Record<string, string> = {
+  slonce: "Zapowiada się słoneczny dzień", czesciowe: "Czeka nas dzień z przejaśnieniami", pochmurno: "Dzień raczej pochmurny",
+  deszcz: "Przyda się parasol – miejscami popada", burza: "Możliwe burze", snieg: "Szykujcie się na śnieg",
+  mgla: "Dzień zacznie się we mgle", gololedz: "Uwaga na gołoledź", zamiec: "Uwaga, zamieć śnieżna",
 };
 
-/** Tekst dla lektora – bez wymieniania wszystkich liczb, ogólnie i miło */
+/** Tekst dla lektora: zawsze dynamiczne otwarcie, potem prognoza, myśl dnia, pożegnanie. ~25 s. */
 function voiceText(f: Omit<Forecast, "voiceoverText">): string {
   const DAYS_PL = ["niedziela", "poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota"];
   const d = new Date(`${f.date}T12:00:00Z`);
-  const rz = f.cities[0];
+  const byT = [...f.cities].sort((a, b) => b.tDay - a.tDay);
+  const hot = byT[0], cold = byT[byT.length - 1];
+  const rz = f.cities.find((c) => c.name === "Rzeszów") ?? f.cities[0];
+  const minNight = Math.min(...f.cities.map((c) => c.tNight));
+  const warn = f.warnings.map((w) => w.event.toLowerCase().replace(/do (\d{1,2}:\d{2})/g, (_, t) => "do " + timeGen(t)));
   const parts = [
-    `Dzień dobry, Podkarpacie! Dziś ${DAYS_PL[d.getUTCDay()]}.`,
-    `${KIND_LABEL[f.background]} w większości regionu. W Rzeszowie w dzień do ${tSay(rz.tDay)}, w nocy ${tSay(rz.tNight)}.`,
-    f.warnings.length ? `Uwaga, IMGW ostrzega: ${f.warnings.map((w) => w.event.toLowerCase()).join(" oraz ")}.` : "",
+    `Dzień dobry, Podkarpacie! Dzisiaj ${DAYS_PL[d.getUTCDay()]}, ${dayGen(d.getUTCDate())} ${MONTH_GEN[d.getUTCMonth()]}.`,
+    `${KIND_SAY[f.background] ?? KIND_LABEL[f.background]}.`,
+    hot.tDay === cold.tDay
+      ? `W całym regionie około ${tSay(hot.tDay)}.`
+      : `Najcieplej ${LOC[hot.name] ?? hot.name} – ${tSay(hot.tDay)}, najchłodniej ${LOC[cold.name] ?? cold.name} – ${tSay(cold.tDay)}.` +
+        (rz !== hot && rz !== cold ? ` W Rzeszowie ${tSay(rz.tDay)}.` : ""),
+    minNight <= 0 ? `Nocą przymrozek, nawet ${tSay(minNight)}.` : "",
+    warn.length ? `Uwaga, IMGW ostrzega: ${warn.join(" oraz ")}.` : "",
     f.fullMoon ? "A wieczorem na niebie pełnia księżyca." : "",
-    f.dayNote ? `Dziś obchodzimy: ${f.dayNote}.` : "",
+    f.dayNote ? `Dziś ${f.dayNote}!` : "",
+    `Słońce wschodzi o ${timeGen(f.sunrise)}.`,
     `Myśl na dziś: ${f.maxim}`,
   ];
   const card = ALL_CARDS().find((c) => c.id === f.endCard);

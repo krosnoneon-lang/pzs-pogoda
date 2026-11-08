@@ -108,6 +108,10 @@ export const VOICEOVER = {
   volume: 1.0,
   /** głośność muzyki pod lektorem */
   musicUnderVoice: 0.18,
+  /** ElevenLabs: Jacek Placek (dynamiczny, reklamowy) */
+  voiceId: "fbNqWJ0FaV9a6IT2gr16",
+  model: "eleven_multilingual_v2",
+  settings: { stability: 0.4, similarity_boost: 0.8, style: 0.45, use_speaker_boost: true },
 };
 
 /* ------------------------------------------------------------------ */

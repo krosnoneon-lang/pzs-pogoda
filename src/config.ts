@@ -135,7 +135,8 @@ export type EndCard = {
   accent: "magenta" | "blue";
 };
 
-/** Własne projekty – rotacja, gdy nie ma sponsora (codziennie inny) */
+/** Własne projekty – rotacja, gdy nie ma sponsora (codziennie inny).
+ *  W rotacji są TYLKO karty z logo / grafiką / animacją (video, image, logo). Karta z samym tekstem nie poleci. */
 export const PROJECT_CARDS: EndCard[] = [
   { id: "pzs", kicker: "", title: "Podkarpacie ze Smakiem", video: "plansze/pzs-logo-anim.mp4", videoSeconds: 3, videoEndFrame: "plansze/pzs-logo-anim-koniec.jpg", videoVolume: 0.7, accent: "magenta" },
   { id: "studio", kicker: "Zapraszamy do", title: "Studio ze Smakiem", subtitle: "Rozmowy z ludźmi ze smakiem", accent: "blue" },
@@ -159,6 +160,9 @@ export const AD_SCHEDULE: { from: string; to: string; adId: string }[] = [
   // { from: "2026-12-01", to: "2026-12-24", adId: "sponsor-x" },
 ];
 export const ACTIVE_AD: string | null = null;
+/** Gdy nie ma reklamy: stała plansza (DO ODWOŁANIA – animacja logo Podkarpacie ze Smakiem).
+ *  null = rotacja własnych projektów (tylko te z logo/grafiką). */
+export const DEFAULT_CARD: string | null = "pzs";
 
 export const ALL_CARDS = (): EndCard[] => [...PROJECT_CARDS, ...ADS];
 

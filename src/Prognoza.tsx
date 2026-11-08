@@ -30,6 +30,9 @@ import {
 import type { CityForecast, Forecast } from "./types";
 import { MoonIcon, WeatherIcon } from "./icons";
 
+/** Polska typografia: jedno- i dwuliterowe słowa (w, z, i, ze, do, na…) nie zostają na końcu wiersza */
+const nbsp = (t?: string) => (t ?? "").replace(/(^|\s)([A-Za-zĄĆĘŁŃÓŚŹŻąćęłńóśźż]{1,2})\s+/g, "$1$2\u00A0");
+
 /* ---------- font lokalny (powtarzalny render, polskie znaki) ---------- */
 const LATIN_EXT = "U+0100-02AF, U+0304, U+0308, U+0329, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF";
 const LATIN = "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD";
@@ -236,7 +239,7 @@ const EndCardView: React.FC<{ card: EndCard; bg: string }> = ({ card, bg }) => {
           </Sequence>
         )}
         {card.kicker && <div style={{ position: "absolute", top: SAFE.top + 90, left: 60, right: 60, textAlign: "center", ...text, fontWeight: 800, fontSize: 36, letterSpacing: 3, color: accent, textTransform: "uppercase", lineHeight: 1.3, whiteSpace: "nowrap", opacity: p, transform: `translateY(${(1 - p) * 14}px)`, textShadow: "0 2px 18px rgba(0,0,0,0.8)" }}>
-          {card.kicker}
+          {nbsp(card.kicker)}
         </div>}
       </AbsoluteFill>
     );
@@ -247,9 +250,9 @@ const EndCardView: React.FC<{ card: EndCard; bg: string }> = ({ card, bg }) => {
         <Background file={bg} blur={18} />
         <AbsoluteFill style={{ background: "rgba(4,6,16,0.78)" }} />
         <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
-          <div style={{ ...text, fontWeight: 800, fontSize: 34, letterSpacing: 5, color: accent, textTransform: "uppercase", textAlign: "center", opacity: p, padding: "0 60px" }}>{card.kicker}</div>
+          <div style={{ ...text, fontWeight: 800, fontSize: 34, letterSpacing: 5, color: accent, textTransform: "uppercase", textAlign: "center", opacity: p, padding: "0 60px" }}>{nbsp(card.kicker)}</div>
           <Img src={staticFile(card.image)} style={{ width: 1040, height: "auto", marginTop: 40, borderRadius: 24, opacity: p2, transform: `scale(${interpolate(p2, [0, 1], [0.95, 1])})`, boxShadow: `0 0 80px ${accent}55` }} />
-          {card.subtitle && <div style={{ ...text, fontWeight: 600, fontSize: 38, color: COLORS.muted, textAlign: "center", marginTop: 40, opacity: p2 }}>{card.subtitle}</div>}
+          {card.subtitle && <div style={{ ...text, fontWeight: 600, fontSize: 38, color: COLORS.muted, textAlign: "center", marginTop: 40, opacity: p2 }}>{nbsp(card.subtitle)}</div>}
         </AbsoluteFill>
       </AbsoluteFill>
     );
@@ -267,17 +270,17 @@ const EndCardView: React.FC<{ card: EndCard; bg: string }> = ({ card, bg }) => {
       <AbsoluteFill style={{ background: "rgba(6,10,22,0.62)" }} />
       <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: `0 ${SAFE.side + 20}px` }}>
         <div style={{ ...text, fontWeight: 800, fontSize: 34, letterSpacing: 5, color: accent, textTransform: "uppercase", textAlign: "center", opacity: p }}>
-          {card.kicker}
+          {nbsp(card.kicker)}
         </div>
         {card.logo ? (
           <Img src={staticFile(card.logo)} style={{ width: 720, height: "auto", marginTop: 40, opacity: p2, transform: `scale(${interpolate(p2, [0, 1], [0.94, 1])})` }} />
         ) : (
           <div style={{ ...text, fontWeight: 900, fontSize: 104, lineHeight: 1.02, textAlign: "center", marginTop: 24, letterSpacing: -2, opacity: p2, transform: `scale(${interpolate(p2, [0, 1], [0.94, 1])})`, textShadow: `0 0 40px ${accent}55` }}>
-            {card.title}
+            {nbsp(card.title)}
           </div>
         )}
         {card.subtitle && (
-          <div style={{ ...text, fontWeight: 600, fontSize: 38, color: COLORS.muted, textAlign: "center", marginTop: 28, opacity: p2 }}>{card.subtitle}</div>
+          <div style={{ ...text, fontWeight: 600, fontSize: 38, color: COLORS.muted, textAlign: "center", marginTop: 28, opacity: p2 }}>{nbsp(card.subtitle)}</div>
         )}
         <div style={{ width: 120, height: 8, borderRadius: 4, background: accent, marginTop: 44, boxShadow: `0 0 24px ${accent}`, transform: `scaleX(${p2})` }} />
       </AbsoluteFill>

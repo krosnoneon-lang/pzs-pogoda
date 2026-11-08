@@ -13,7 +13,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as Astronomy from "astronomy-engine";
-import { ACTIVE_AD, ADS, AD_SCHEDULE, ALL_CARDS, BACKGROUND_MODE, CITIES, KIND_LABEL, PROJECT_CARDS, SUN_CITY } from "../src/config";
+import { ACTIVE_AD, DEFAULT_CARD, ADS, AD_SCHEDULE, ALL_CARDS, BACKGROUND_MODE, CITIES, KIND_LABEL, PROJECT_CARDS, SUN_CITY } from "../src/config";
 import { pickDay, pickMaxim } from "../src/dzien";
 import type { CityForecast, Forecast, Warning, WeatherKind } from "../src/types";
 
@@ -196,8 +196,11 @@ function pickEndCard(): string {
   const sch = AD_SCHEDULE.find((s) => s.from <= DATE && DATE <= s.to && ADS.some((a) => a.id === s.adId));
   if (sch) return sch.adId;
   if (ACTIVE_AD && ADS.some((a) => a.id === ACTIVE_AD)) return ACTIVE_AD;
+  if (DEFAULT_CARD && PROJECT_CARDS.some((c) => c.id === DEFAULT_CARD)) return DEFAULT_CARD;
   const doy = Math.floor((Date.parse(DATE) - Date.parse(`${DATE.slice(0, 4)}-01-01`)) / 864e5);
-  return PROJECT_CARDS[doy % PROJECT_CARDS.length].id;
+  // w rotacji tylko projekty z gotowym logo / grafiką / animacją – nigdy sam napis
+  const ready = PROJECT_CARDS.filter((c) => c.video || c.image || c.logo);
+  return ready[doy % ready.length].id;
 }
 
 const tSay = (t: number) => {

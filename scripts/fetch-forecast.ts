@@ -14,7 +14,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as Astronomy from "astronomy-engine";
 import { ACTIVE_AD, DEFAULT_CARD, ADS, AD_SCHEDULE, ALL_CARDS, BACKGROUND_MODE, CITIES, KIND_LABEL, PROJECT_CARDS, SUN_CITY } from "../src/config";
-import { pickDay, pickMaxim } from "../src/dzien";
+import { pickDay, pickMaxim, pickCta } from "../src/dzien";
 import type { CityForecast, Forecast, Warning, WeatherKind } from "../src/types";
 
 const TZ = "Europe/Warsaw";
@@ -247,12 +247,10 @@ function voiceText(f: Omit<Forecast, "voiceoverText">): string {
     warn.length ? `Uwaga, IMGW ostrzega: ${warn.join(" oraz ")}.` : "",
     f.fullMoon ? "A wieczorem na niebie pełnia księżyca." : "",
     f.dayNote ? `Dziś ${f.dayNote}!` : "",
-    `Słońce wschodzi o ${timeGen(f.sunrise)}.`,
     `Myśl na dziś: ${f.maxim}`,
   ];
   const card = ALL_CARDS().find((c) => c.id === f.endCard);
   if (card && ADS.some((a) => a.id === card.id)) parts.push(`Prognozę przygotował dla was ${card.title}.`);
-  parts.push("Miłego dnia!");
   return parts.filter(Boolean).join(" ");
 }
 
@@ -313,7 +311,7 @@ async function main() {
     voiceover: fs.existsSync(path.join(__dirname, "..", "public", "data", "lektor.mp3")),
     source: mockScenario ? `DANE TESTOWE (${mockScenario})` : "Dane: MET Norway (CC BY 4.0) · ostrzeżenia: IMGW-PIB",
   };
-  const forecast: Forecast = { ...base, voiceoverText: voiceText(base) };
+  const forecast: Forecast = { ...base, voiceoverText: voiceText(base), ctaText: pickCta(DATE), cta: false };
   const out = path.join(__dirname, "..", "public", "data", "forecast.json");
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, JSON.stringify(forecast, null, 2));

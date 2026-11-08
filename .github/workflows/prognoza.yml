@@ -24,6 +24,10 @@ on:
         description: "Gotowe nagranie lektora (https://…mp3) – puste = generuj z ElevenLabs, jeśli jest klucz"
         required: false
         default: ""
+      lektor_cta_url:
+        description: "Gotowe nagranie CTA (https://…mp3)"
+        required: false
+        default: ""
       metricool:
         description: "Wysłać do Metricool? (tak/nie)"
         required: false
@@ -92,6 +96,7 @@ jobs:
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           LEKTOR_URL: ${{ github.event.inputs.lektor_url }}
+          LEKTOR_CTA_URL: ${{ github.event.inputs.lektor_cta_url }}
         run: npx tsx scripts/lektor.ts
 
       - name: Render wideo

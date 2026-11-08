@@ -84,7 +84,26 @@ export const MAXIMS: string[] = [
 export const pickDay = (dateIso: string): string | null =>
   EXTRA_DAYS[dateIso] ?? DAYS[dateIso.slice(5)] ?? null;
 
+/** Myśl dnia ustawiona ręcznie na konkretną datę (wygrywa z listą MAXIMS) */
+export const MAXIM_OVERRIDE: Record<string, string> = {
+  "2026-11-08": "Niedziela to taki dzień, w którym kawa smakuje lepiej, a nikt nie pyta, która godzina.",
+};
+
 export const pickMaxim = (dateIso: string): string => {
+  if (MAXIM_OVERRIDE[dateIso]) return MAXIM_OVERRIDE[dateIso];
   const doy = Math.floor((Date.parse(dateIso) - Date.parse(`${dateIso.slice(0, 4)}-01-01`)) / 864e5);
   return MAXIMS[doy % MAXIMS.length];
+};
+
+/** Wezwanie do działania na końcu (lektor mówi je na planszy z logo PzS). Rotacja codziennie. */
+export const CTAS: string[] = [
+  "Zostawcie serduszko, wyślijcie prognozę znajomym i obserwujcie Podkarpacie ze smakiem!",
+  "Przyda się komuś? Wyślijcie mu tę prognozę – i obserwujcie Podkarpacie ze smakiem!",
+  "Obserwujcie Podkarpacie ze smakiem – codziennie rano pogoda i dobre słowo na start. Zostawcie serduszko!",
+];
+const BYE = ["Miłej niedzieli!", "Udanego tygodnia!", "Miłego dnia!", "Miłego dnia!", "Miłego dnia!", "Udanego piątku!", "Udanej soboty!"];
+export const pickCta = (dateIso: string): string => {
+  const d = new Date(`${dateIso}T12:00:00Z`);
+  const doy = Math.floor((Date.parse(dateIso) - Date.parse(`${dateIso.slice(0, 4)}-01-01`)) / 864e5);
+  return `${CTAS[doy % CTAS.length]} ${BYE[d.getUTCDay()]}`;
 };

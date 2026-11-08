@@ -220,7 +220,7 @@ const BottomInfo: React.FC<{ f: Forecast }> = ({ f }) => {
 };
 
 /* ---------- plansza końcowa: sponsor albo projekt ---------- */
-const EndCardView: React.FC<{ card: EndCard; bg: string }> = ({ card, bg }) => {
+const EndCardView: React.FC<{ card: EndCard; bg: string; duck?: boolean }> = ({ card, bg, duck }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const p = spring({ frame: frame - 6, fps, config: { damping: 200 } });
@@ -231,7 +231,7 @@ const EndCardView: React.FC<{ card: EndCard; bg: string }> = ({ card, bg }) => {
     return (
       <AbsoluteFill style={{ background: "#050a1a" }}>
         <Sequence durationInFrames={vf} layout="absolute-fill">
-          <OffthreadVideo src={staticFile(card.video)} volume={card.videoVolume ?? 0} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <OffthreadVideo src={staticFile(card.video)} volume={duck ? Math.min(card.videoVolume ?? 0, VOICEOVER.logoVolumeUnderCta) : card.videoVolume ?? 0} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         </Sequence>
         {card.videoEndFrame && (
           <Sequence from={vf - 1} layout="absolute-fill">
@@ -327,6 +327,11 @@ export const Prognoza: React.FC<Forecast> = (f) => {
   const fadeIn = (from: number) => interpolate(frame, [from, from + XF], [0, 1], clamp);
   const forecastOpacity = Math.min(interpolate(frame, [0, 10], [0, 1], { ...clamp, easing: Easing.out(Easing.quad) }), 1 - fadeIn(MORNING_FROM));
   const musicLevel = f.voiceover ? VOICEOVER.musicUnderVoice : MUSIC.volume;
+  // lektor musi zmieścić się przed planszą końcową, CTA – przed końcem filmu
+  const fitRate = (dur: number | undefined, available: number) =>
+    dur ? Math.min(VOICEOVER.maxRate, Math.max(1, dur / available)) : 1;
+  const voiceRate = fitRate(f.voiceSec, END_FROM / FPS - VOICEOVER.startAt - 0.3);
+  const ctaRate = fitRate(f.ctaSec, (TOTAL_FRAMES - END_FROM) / FPS - VOICEOVER.ctaStartAt - 0.4);
 
   return (
     <AbsoluteFill style={{ background: "#000" }}>
@@ -345,7 +350,7 @@ export const Prognoza: React.FC<Forecast> = (f) => {
       </Sequence>
       <Sequence from={END_FROM} name="reklama">
         <AbsoluteFill style={{ opacity: fadeIn(END_FROM) }}>
-          <EndCardView card={card} bg={bg} />
+          <EndCardView card={card} bg={bg} duck={!!f.cta} />
         </AbsoluteFill>
       </Sequence>
       {f.source.startsWith("DANE TESTOWE") && (
@@ -362,7 +367,12 @@ export const Prognoza: React.FC<Forecast> = (f) => {
       )}
       {f.voiceover && (
         <Sequence from={sec(VOICEOVER.startAt)} name="lektor">
-          <Audio src={staticFile(VOICEOVER.file)} volume={VOICEOVER.volume} />
+          <Audio src={staticFile(VOICEOVER.file)} volume={VOICEOVER.volume} playbackRate={voiceRate} />
+        </Sequence>
+      )}
+      {f.cta && (
+        <Sequence from={END_FROM + sec(VOICEOVER.ctaStartAt)} name="lektor-cta">
+          <Audio src={staticFile(VOICEOVER.ctaFile)} volume={VOICEOVER.volume} playbackRate={ctaRate} />
         </Sequence>
       )}
     </AbsoluteFill>

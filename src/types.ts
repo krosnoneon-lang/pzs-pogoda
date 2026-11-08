@@ -55,6 +55,13 @@ export type Forecast = {
   voiceover: boolean;
   /** tekst dla lektora (ElevenLabs) – generowany automatycznie */
   voiceoverText: string;
+  /** wezwanie do działania – lektor na planszy końcowej */
+  ctaText?: string;
+  /** czy jest nagrane CTA (public/data/lektor-cta.mp3) */
+  cta?: boolean;
+  /** długości nagrań w sekundach (do dopasowania tempa) */
+  voiceSec?: number;
+  ctaSec?: number;
   /** źródło danych – mały podpis */
   source: string;
 };

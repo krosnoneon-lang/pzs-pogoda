@@ -103,6 +103,14 @@ export const TIMING = {
 /** Lektor (wersja 2): plik public/data/lektor.mp3 generowany co dzień z voiceoverText */
 export const VOICEOVER = {
   file: "data/lektor.mp3",
+  /** CTA na planszy z logo */
+  ctaFile: "data/lektor-cta.mp3",
+  /** start CTA od początku planszy końcowej (s) – po dźwięku logo */
+  ctaStartAt: 1.0,
+  /** głośność dźwięku animacji logo, gdy leci CTA */
+  logoVolumeUnderCta: 0.3,
+  /** maksymalne przyspieszenie lektora, gdy nagranie jest za długie */
+  maxRate: 1.15,
   /** start lektora (s) */
   startAt: 0.8,
   volume: 1.0,

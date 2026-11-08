@@ -26,3 +26,7 @@ jobs:
           D="${{ github.event.inputs.date }}"; [ -z "$D" ] && D=$(date -d tomorrow +%F)
           npx tsx scripts/fetch-forecast.ts --date "$D"
           cat public/data/forecast.json
+      - name: Czy jest klucz ElevenLabs?
+        env:
+          K: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: if [ -n "$K" ]; then echo "KLUCZ_ELEVENLABS=TAK"; else echo "KLUCZ_ELEVENLABS=NIE"; fi

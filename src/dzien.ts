@@ -3,6 +3,7 @@
  * Oba zbiory edytujesz tutaj. Klucz dnia: "MM-DD".
  * Święta ruchome (Wielkanoc, Boże Ciało itp.) dopisz ręcznie na dany rok w EXTRA_DAYS.
  */
+import { IMIENINY } from "./imieniny";
 
 export const DAYS: Record<string, string> = {
   "01-01": "Nowy Rok",
@@ -83,6 +84,26 @@ export const MAXIMS: string[] = [
 
 export const pickDay = (dateIso: string): string | null =>
   EXTRA_DAYS[dateIso] ?? DAYS[dateIso.slice(5)] ?? null;
+
+/**
+ * Imieniny – lektor czyta je zaraz po dacie: „…dziesiątego listopada, imieniny obchodzą Andrzej i Ludomir.”
+ * Lista na cały rok jest w src/imieniny.ts (generowana, nie edytuj). Tu ustawiasz tylko:
+ *   IMIENINY_ILE      – ile imion czyta lektor (1–3)
+ *   IMIENINY_RECZNIE  – własne imiona na wybrany dzień, klucz "MM-DD" (wygrywa z listą); [] = nie czytaj imienin
+ */
+export const IMIENINY_ILE = 2;
+export const IMIENINY_RECZNIE: Record<string, string[]> = {
+  // "11-10": ["Leon", "Andrzej"],
+};
+
+export const pickImieniny = (dateIso: string, ile = IMIENINY_ILE): string[] => {
+  const k = dateIso.slice(5);
+  return (IMIENINY_RECZNIE[k] ?? IMIENINY[k]?.lektor ?? []).slice(0, Math.max(0, ile));
+};
+
+/** „Andrzej i Ludomir”, „Jan, Żaneta i Maksym” */
+export const imionaSay = (names: string[]): string =>
+  names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} i ${names[names.length - 1]}`;
 
 /** Myśl dnia ustawiona ręcznie na konkretną datę (wygrywa z listą MAXIMS) */
 export const MAXIM_OVERRIDE: Record<string, string> = {

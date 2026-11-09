@@ -32,6 +32,7 @@
     "lint": "eslint src && tsc",
     "prognoza": "tsx scripts/fetch-forecast.ts",
     "prognoza:test": "tsx scripts/fetch-forecast.ts --mock zima",
+    "imieniny:test": "tsx scripts/test-imieniny.ts",
     "render": "remotion render PrognozaPogody out/prognoza.mp4 --props=public/data/forecast.json --codec=h264 --crf=20",
     "metricool:test": "METRICOOL_DRY=1 tsx scripts/publish-metricool.ts https://example.com/prognoza.mp4"
   },

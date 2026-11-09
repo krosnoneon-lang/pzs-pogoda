@@ -6,7 +6,7 @@ publikowane jako Stories na FB Podkarpacie ze Smakiem. Specyfikacja: Notion
 
 ## Oś czasu (ok. 30 s)
 0–15 s prognoza (logo, data, 6 miast, słońce/pełnia/ostrzeżenia) → 15–22 s „Na dobry początek dnia”
-(święto dnia + myśl na dziś, plik `src/dzien.ts`) → 22–30 s reklama albo projekt.
+(święto dnia + myśl na dziś + imieniny dla lektora, plik `src/dzien.ts`) → 22–30 s reklama albo projekt.
 Lektor: skrypt co dzień zapisuje `voiceoverText` w forecast.json; gdy dodamy plik `public/data/lektor.mp3`,
 odtworzy się sam, a muzyka ściszy się pod głos.
 
@@ -35,6 +35,11 @@ npm run render               # out/prognoza.mp4
 - Tło: kategoria dominująca w regionie (remis → Rzeszów); przełącznik `BACKGROUND_MODE`.
 - Ostrzeżenia IMGW: woj. podkarpackie, ważne danego dnia, maks. 2 najwyższe stopnie.
 - Wschód/zachód słońca i pełnia: liczone lokalnie (astronomy-engine).
+- Imieniny: `src/imieniny.ts` – 366 dni (z 29 lutego). Lektor czyta je po dacie: „…dziesiątego listopada,
+  imieniny obchodzą Andrzej i Ludomir”. Imiona jak w popularnych kalendarzach ściennych (kalendarzswiat.pl,
+  sprawdzone z drugim kalendarzem i z pełnymi listami: Wikipedia PL i kilka niezależnych baz), kolejność wg
+  popularności w rejestrze PESEL. Ile imion czytać (`IMIENINY_ILE`) i ręczne poprawki na dany dzień
+  (`IMIENINY_RECZNIE`) ustawiasz w `src/dzien.ts`. Kontrola: `npm run imieniny:test`.
 
 ## Automatyzacja (GitHub Actions → Metricool)
 `.github/workflows/prognoza.yml` – codziennie 00:01 czasu warszawskiego (obsługuje zmianę czasu):

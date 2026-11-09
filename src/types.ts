@@ -51,6 +51,8 @@ export type Forecast = {
   dayNote: string | null;
   /** maksyma dnia */
   maxim: string;
+  /** imieniny czytane przez lektora (src/imieniny.ts, ręczne zmiany w src/dzien.ts) */
+  imieniny?: string[];
   /** czy jest nagrany lektor na ten dzień (public/data/lektor.mp3) */
   voiceover: boolean;
   /** tekst dla lektora (ElevenLabs) – generowany automatycznie */

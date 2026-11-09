@@ -14,7 +14,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as Astronomy from "astronomy-engine";
 import { ACTIVE_AD, DEFAULT_CARD, ADS, AD_SCHEDULE, ALL_CARDS, BACKGROUND_MODE, CITIES, KIND_LABEL, PROJECT_CARDS, SUN_CITY } from "../src/config";
-import { pickDay, pickMaxim, pickCta } from "../src/dzien";
+import { pickDay, pickMaxim, pickCta, pickImieniny, imionaSay } from "../src/dzien";
 import type { CityForecast, Forecast, Warning, WeatherKind } from "../src/types";
 
 const TZ = "Europe/Warsaw";
@@ -236,8 +236,9 @@ function voiceText(f: Omit<Forecast, "voiceoverText">): string {
   const rz = f.cities.find((c) => c.name === "Rzeszów") ?? f.cities[0];
   const minNight = Math.min(...f.cities.map((c) => c.tNight));
   const warn = f.warnings.map((w) => w.event.toLowerCase().replace(/do (\d{1,2}:\d{2})/g, (_, t) => "do " + timeGen(t)));
+  const imiona = f.imieniny?.length ? `, imieniny obchodzą ${imionaSay(f.imieniny)}` : "";
   const parts = [
-    `Dzień dobry, Podkarpacie! Dzisiaj ${DAYS_PL[d.getUTCDay()]}, ${dayGen(d.getUTCDate())} ${MONTH_GEN[d.getUTCMonth()]}.`,
+    `Dzień dobry, Podkarpacie! Dzisiaj ${DAYS_PL[d.getUTCDay()]}, ${dayGen(d.getUTCDate())} ${MONTH_GEN[d.getUTCMonth()]}${imiona}.`,
     `${KIND_SAY[f.background] ?? KIND_LABEL[f.background]}.`,
     hot.tDay === cold.tDay
       ? `W całym regionie około ${tSay(hot.tDay)}.`
@@ -308,6 +309,7 @@ async function main() {
     endCard: arg("--plansza") ?? pickEndCard(),
     dayNote: pickDay(DATE),
     maxim: pickMaxim(DATE),
+    imieniny: pickImieniny(DATE),
     voiceover: fs.existsSync(path.join(__dirname, "..", "public", "data", "lektor.mp3")),
     source: mockScenario ? `DANE TESTOWE (${mockScenario})` : "Dane: MET Norway (CC BY 4.0) · ostrzeżenia: IMGW-PIB",
   };

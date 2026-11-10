@@ -108,6 +108,7 @@ export const imionaSay = (names: string[]): string =>
 /** Myśl dnia ustawiona ręcznie na konkretną datę (wygrywa z listą MAXIMS) */
 export const MAXIM_OVERRIDE: Record<string, string> = {
   "2026-11-08": "Niedziela to taki dzień, w którym kawa smakuje lepiej, a nikt nie pyta, która godzina.",
+  "2026-11-11": "Zgoda buduje, niezgoda rujnuje.",
 };
 
 export const pickMaxim = (dateIso: string): string => {

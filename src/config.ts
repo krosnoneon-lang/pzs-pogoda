@@ -12,15 +12,43 @@ export const HEIGHT = 1920;
 /** Bezpieczne strefy Stories: góra (pasek postępu, nazwa profilu) i dół (pole odpowiedzi) */
 export const SAFE = { top: 250, bottom: 300, side: 64 };
 
-/** Kolejność stała (spec). lat/lon dla skryptu prognozy. */
+/** Miejscowości na mapie pogody (wersja 2, XI 2026): wszystkie strefy województwa.
+ *  region – do opisu opadów przez lektora; dol – karta pod punktem (gdy miasta są blisko); loc – „w …” dla lektora */
 export const CITIES = [
-  { name: "Rzeszów", lat: 50.0413, lon: 21.999 },
-  { name: "Krosno", lat: 49.6887, lon: 21.7706 },
-  { name: "Przemyśl", lat: 49.7838, lon: 22.7678 },
-  { name: "Tarnobrzeg", lat: 50.573, lon: 21.6794 },
-  { name: "Polańczyk", lat: 49.3664, lon: 22.418 },
-  { name: "Dukla", lat: 49.5553, lon: 21.6826 },
+  { name: "Tarnobrzeg", lat: 50.5729, lon: 21.6792, region: "polnoc", loc: "w Tarnobrzegu", dol: true },
+  { name: "Stalowa Wola", lat: 50.5653, lon: 22.0644, region: "polnoc", loc: "w Stalowej Woli" },
+  { name: "Mielec", lat: 50.2895, lon: 21.4229, region: "polnoc", loc: "w Mielcu" },
+  { name: "Leżajsk", lat: 50.2622, lon: 22.4189, region: "polnoc", loc: "w Leżajsku" },
+  { name: "Rzeszów", lat: 50.0413, lon: 21.999, region: "centrum", loc: "w Rzeszowie" },
+  { name: "Dębica", lat: 50.0515, lon: 21.4105, region: "centrum", loc: "w Dębicy" },
+  { name: "Łańcut", lat: 50.0691, lon: 22.2321, region: "centrum", loc: "w Łańcucie", dol: true },
+  { name: "Jarosław", lat: 50.0159, lon: 22.6797, region: "wschod", loc: "w Jarosławiu" },
+  { name: "Przemyśl", lat: 49.7838, lon: 22.7678, region: "wschod", loc: "w Przemyślu", dol: true },
+  { name: "Lubaczów", lat: 50.1574, lon: 23.1226, region: "wschod", loc: "w Lubaczowie" },
+  { name: "Krosno", lat: 49.6887, lon: 21.7706, region: "pogorze", loc: "w Krośnie" },
+  { name: "Jasło", lat: 49.747, lon: 21.4743, region: "pogorze", loc: "w Jaśle", dol: true },
+  { name: "Dukla", lat: 49.5553, lon: 21.6826, region: "pogorze", loc: "w Dukli", dol: true },
+  { name: "Sanok", lat: 49.5609, lon: 22.207, region: "pogorze", loc: "w Sanoku" },
+  { name: "Ustrzyki Dolne", lat: 49.4302, lon: 22.5877, region: "bieszczady", loc: "w Ustrzykach Dolnych" },
+  { name: "Polańczyk", lat: 49.3664, lon: 22.418, region: "bieszczady", loc: "w Polańczyku", dol: true },
+  { name: "Ustrzyki Górne", lat: 49.1052, lon: 22.6492, region: "bieszczady", loc: "w Ustrzykach Górnych", dol: true },
 ] as const;
+
+export const REGION_LOC: Record<string, string> = {
+  polnoc: "na północy regionu",
+  centrum: "w centrum regionu",
+  wschod: "na wschodzie",
+  pogorze: "na Pogórzu",
+  bieszczady: "w Bieszczadach",
+};
+
+/** Scena mapy: minimalne długości (s), gdy brak lektora */
+export const MAPA = {
+  intro: 6.5,
+  mapa: 12,
+  /** wiatr pokazujemy strzałkami od tej prędkości (km/h) */
+  windMin: 0,
+};
 
 /** Miasto, dla którego podajemy wschód/zachód słońca */
 export const SUN_CITY = "Rzeszów";
@@ -84,7 +112,7 @@ export const MUSIC = {
   fadeOutSeconds: 1.5,
 };
 
-/** Oś czasu (sekundy) – całość ok. 30 s */
+/** Oś czasu (sekundy) – wersja 1 (lista miast). Wersja 2 (mapa) używa MAPA i długości nagrań lektora. */
 export const TIMING = {
   /** wejście tła, logo i daty */
   intro: 1.2,

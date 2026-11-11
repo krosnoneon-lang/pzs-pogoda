@@ -11,7 +11,9 @@
   "dependencies": {
     "@remotion/cli": "4.0.541",
     "@remotion/fonts": "^4.0.541",
+    "@turf/turf": "^7.4.0",
     "astronomy-engine": "^2.1.19",
+    "maplibre-gl": "^5.24.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "remotion": "4.0.541"

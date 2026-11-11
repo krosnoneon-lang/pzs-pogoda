@@ -25,7 +25,23 @@ export type CityForecast = {
   gust: number;
   /** kierunek wiatru, skrót PL: N, NE, E… → „pn.”, itp. */
   windDir: string;
+  /** skąd wieje, stopnie (0 = z północy) – do strzałek na mapie */
+  windDeg?: number;
 };
+
+/** Mapa pogodowa (wersja 2): co pokazać i kiedy */
+export type MapaInfo = {
+  /** zbliżenie na opady / mgłę; null = bez zbliżenia */
+  zjawisko: { kind: WeatherKind; text: string; lon: number; lat: number } | null;
+  /** przeważający wiatr: skąd wieje (stopnie) i średnia prędkość km/h */
+  windDeg: number;
+  windAvg: number;
+  /** podział czasu sceny mapy (ułamki 0..1) wg długości zdań lektora */
+  fazy: { dzien: [number, number]; zjawisko: [number, number] | null; noc: [number, number] };
+};
+
+/** Części tekstu lektora: plansza powitalna, mapa, myśl dnia (osobne nagrania = dokładne cięcia) */
+export type Lektor = { intro: string; mapa: string; mysl: string };
 
 export type Warning = {
   /** np. „Oblodzenie”, „Burze z gradem” */
@@ -66,4 +82,9 @@ export type Forecast = {
   ctaSec?: number;
   /** źródło danych – mały podpis */
   source: string;
+  /** wersja 2: mapa + lektor w trzech częściach */
+  mapa?: MapaInfo;
+  lektor?: Lektor;
+  /** długości nagrań części lektora (s); brak = brak nagrania */
+  lektorSec?: { intro?: number; mapa?: number; mysl?: number };
 };

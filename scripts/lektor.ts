@@ -40,6 +40,24 @@ const duration = (file: string): number | undefined => {
 async function main() {
   const f = JSON.parse(fs.readFileSync(fj, "utf8"));
   const key = !!process.env.ELEVENLABS_API_KEY;
+  // WERSJA 2 (mapa): trzy osobne nagrania – plansza, mapa, myśl dnia – żeby sceny zmieniały się dokładnie po zdaniach
+  if (f.lektor && key) {
+    f.lektorSec = {};
+    for (const part of ["intro", "mapa", "mysl"] as const) {
+      const p = path.join(root, "data", `lektor-${part}.mp3`);
+      fs.writeFileSync(p, await tts(f.lektor[part]));
+      f.lektorSec[part] = duration(p);
+      console.log(`Lektor ${part} (${f.lektorSec[part]?.toFixed(1)} s):`, f.lektor[part]);
+    }
+    f.voiceover = true;
+    if (f.ctaText) {
+      const p = path.join(root, VOICEOVER.ctaFile);
+      fs.writeFileSync(p, await tts(f.ctaText));
+      f.cta = true; f.ctaSec = duration(p);
+    }
+    fs.writeFileSync(fj, JSON.stringify(f, null, 2));
+    return;
+  }
   const main = process.env.LEKTOR_URL ? await download(process.env.LEKTOR_URL) : key ? await tts(f.voiceoverText) : null;
   const cta = process.env.LEKTOR_CTA_URL ? await download(process.env.LEKTOR_CTA_URL) : key && f.ctaText ? await tts(f.ctaText) : null;
   if (!main && !cta) { console.log("Brak klucza ELEVENLABS_API_KEY i nagrań – film bez lektora."); return; }

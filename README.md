@@ -57,3 +57,18 @@ Konfiguracja repozytorium (Settings → Secrets and variables → Actions):
 Test bez wysyłania: `npm run metricool:test`. Każdy przebieg zostawia film jako artefakt w zakładce Actions (14 dni).
 
 Licencja Remotion: darmowa dla osób prywatnych i firm do 3 osób; większe firmy potrzebują licencji firmowej (remotion.pro).
+
+## Wersja 2 – mapa (XI 2026)
+
+Kompozycja **`PrognozaMapa`** (workflow renderuje ją zamiast `PrognozaPogody`):
+
+1. **Plansza powitalna** (tło pogodowe, logo, data) – lektor: powitanie, data, imieniny, wschód i zachód słońca, święto dnia, pełnia.
+2. **Mapa 3D Podkarpacia** – 17 miejscowości (`CITIES` w `src/config.ts`):
+   DZIEŃ (temperatury, strzałki i smugi wiatru, najcieplej w pomarańczowej ramce) → zbliżenie na opady / mgłę z animacją → NOC (najzimniej w niebieskiej ramce, wschód/zachód).
+   Lektor: najcieplej / najchłodniej w dzień, wiatr (porywy od 45 km/h), opady wg regionów, najzimniej w nocy, ostrzeżenia IMGW.
+3. **Myśl dnia**, 4. **plansza końcowa** (logo / sponsor) + CTA – bez zmian.
+
+Lektor to trzy osobne nagrania (`public/data/lektor-intro.mp3`, `lektor-mapa.mp3`, `lektor-mysl.mp3`), więc sceny zmieniają się dokładnie po zdaniach, a każda trwa tyle, ile lektor mówi.
+Test: `npx tsx scripts/fetch-forecast.ts --mock listopad --date 2026-11-12` (scenariusze: listopad, zima, lato, mgla).
+Render mapy na GitHub Actions idzie bez karty graficznej (`--gl=swangle`) – ok. 1–2 h, dlatego workflow ma limit 180 min (start po 23:00, publikacja 06:00).
+Dane mapy: `public/mapa/` (© OpenStreetMap contributors, AWS Terrain Tiles, GUGiK PRG, Natural Earth).

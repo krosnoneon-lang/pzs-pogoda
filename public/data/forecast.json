@@ -1,82 +1,238 @@
 {
-  "date": "2026-11-07",
+  "date": "2026-11-12",
   "cities": [
     {
-      "name": "Rzeszów",
-      "kind": "slonce",
-      "tDay": 5,
-      "tNight": -3,
-      "pop": 0,
-      "wind": 8,
-      "gust": 8,
-      "windDir": "pd."
+      "name": "Tarnobrzeg",
+      "kind": "pochmurno",
+      "tDay": 6,
+      "tNight": 1,
+      "pop": 20,
+      "wind": 16,
+      "gust": 34,
+      "windDir": "zach.",
+      "windDeg": 262
     },
     {
-      "name": "Krosno",
+      "name": "Stalowa Wola",
+      "kind": "pochmurno",
+      "tDay": 7,
+      "tNight": 0,
+      "pop": 20,
+      "wind": 18,
+      "gust": 34,
+      "windDir": "zach.",
+      "windDeg": 270
+    },
+    {
+      "name": "Mielec",
+      "kind": "pochmurno",
+      "tDay": 8,
+      "tNight": 1,
+      "pop": 20,
+      "wind": 20,
+      "gust": 34,
+      "windDir": "zach.",
+      "windDeg": 278
+    },
+    {
+      "name": "Leżajsk",
+      "kind": "pochmurno",
+      "tDay": 6,
+      "tNight": 0,
+      "pop": 20,
+      "wind": 16,
+      "gust": 34,
+      "windDir": "zach.",
+      "windDeg": 262
+    },
+    {
+      "name": "Rzeszów",
+      "kind": "czesciowe",
+      "tDay": 8,
+      "tNight": 1,
+      "pop": 15,
+      "wind": 20,
+      "gust": 38,
+      "windDir": "zach.",
+      "windDeg": 265
+    },
+    {
+      "name": "Dębica",
+      "kind": "czesciowe",
+      "tDay": 9,
+      "tNight": 0,
+      "pop": 15,
+      "wind": 22,
+      "gust": 38,
+      "windDir": "zach.",
+      "windDeg": 273
+    },
+    {
+      "name": "Łańcut",
+      "kind": "czesciowe",
+      "tDay": 7,
+      "tNight": 1,
+      "pop": 15,
+      "wind": 18,
+      "gust": 38,
+      "windDir": "zach.",
+      "windDeg": 257
+    },
+    {
+      "name": "Jarosław",
       "kind": "slonce",
-      "tDay": 5,
-      "tNight": -3,
-      "pop": 0,
-      "wind": 6,
-      "gust": 6,
-      "windDir": "pd.-wsch."
+      "tDay": 9,
+      "tNight": 1,
+      "pop": 5,
+      "wind": 16,
+      "gust": 30,
+      "windDir": "zach.",
+      "windDeg": 260
     },
     {
       "name": "Przemyśl",
       "kind": "slonce",
-      "tDay": 5,
-      "tNight": -3,
-      "pop": 0,
-      "wind": 5,
-      "gust": 5,
-      "windDir": "pd.-zach."
+      "tDay": 10,
+      "tNight": 2,
+      "pop": 5,
+      "wind": 18,
+      "gust": 30,
+      "windDir": "zach.",
+      "windDeg": 268
     },
     {
-      "name": "Tarnobrzeg",
+      "name": "Lubaczów",
       "kind": "slonce",
-      "tDay": 5,
-      "tNight": -3,
-      "pop": 0,
-      "wind": 5,
-      "gust": 5,
-      "windDir": "pn."
+      "tDay": 8,
+      "tNight": 1,
+      "pop": 5,
+      "wind": 14,
+      "gust": 30,
+      "windDir": "zach.",
+      "windDeg": 252
     },
     {
-      "name": "Polańczyk",
-      "kind": "slonce",
-      "tDay": 5,
-      "tNight": -3,
-      "pop": 0,
-      "wind": 10,
-      "gust": 10,
-      "windDir": "pn.-wsch."
+      "name": "Krosno",
+      "kind": "deszcz",
+      "tDay": 6,
+      "tNight": -1,
+      "pop": 70,
+      "wind": 22,
+      "gust": 45,
+      "windDir": "zach.",
+      "windDeg": 250
+    },
+    {
+      "name": "Jasło",
+      "kind": "deszcz",
+      "tDay": 7,
+      "tNight": -2,
+      "pop": 70,
+      "wind": 24,
+      "gust": 45,
+      "windDir": "zach.",
+      "windDeg": 258
     },
     {
       "name": "Dukla",
-      "kind": "slonce",
-      "tDay": 4,
-      "tNight": -3,
-      "pop": 0,
-      "wind": 8,
-      "gust": 8,
-      "windDir": "wsch."
-    }
-  ],
-  "background": "slonce",
-  "sunrise": "06:31",
-  "sunset": "15:59",
-  "fullMoon": false,
-  "warnings": [
+      "kind": "deszcz",
+      "tDay": 5,
+      "tNight": -1,
+      "pop": 70,
+      "wind": 20,
+      "gust": 45,
+      "windDir": "zach.",
+      "windDeg": 242
+    },
     {
-      "event": "Gęsta mgła",
-      "level": 1,
-      "area": "Rzeszów, Krosno, Przemyśl, Tarnobrzeg, Dukla"
+      "name": "Sanok",
+      "kind": "deszcz",
+      "tDay": 6,
+      "tNight": -2,
+      "pop": 70,
+      "wind": 22,
+      "gust": 45,
+      "windDir": "zach.",
+      "windDeg": 250
+    },
+    {
+      "name": "Ustrzyki Dolne",
+      "kind": "snieg",
+      "tDay": 3,
+      "tNight": -4,
+      "pop": 85,
+      "wind": 28,
+      "gust": 52,
+      "windDir": "pd.-zach.",
+      "windDeg": 248
+    },
+    {
+      "name": "Polańczyk",
+      "kind": "snieg",
+      "tDay": 1,
+      "tNight": -5,
+      "pop": 85,
+      "wind": 24,
+      "gust": 52,
+      "windDir": "pd.-zach.",
+      "windDeg": 232
+    },
+    {
+      "name": "Ustrzyki Górne",
+      "kind": "snieg",
+      "tDay": 1,
+      "tNight": -5,
+      "pop": 85,
+      "wind": 26,
+      "gust": 52,
+      "windDir": "pd.-zach.",
+      "windDeg": 240
     }
   ],
+  "background": "pochmurno",
+  "sunrise": "06:39",
+  "sunset": "15:51",
+  "fullMoon": false,
+  "warnings": [],
   "endCard": "pzs",
   "dayNote": null,
-  "maxim": "Kto rano wstaje, temu Pan Bóg daje.",
+  "maxim": "Co nagle, to po diable.",
+  "imieniny": [
+    "Renata",
+    "Witold"
+  ],
   "voiceover": false,
-  "source": "Dane: MET Norway (CC BY 4.0) · ostrzeżenia: IMGW-PIB",
-  "voiceoverText": "Dzień dobry, Podkarpacie! Dziś sobota. Słonecznie w większości regionu. W Rzeszowie w dzień do 5 stopni, w nocy minus 3 stopnie. Uwaga, IMGW ostrzega: gęsta mgła. Myśl na dziś: Kto rano wstaje, temu Pan Bóg daje. Miłego dnia!"
+  "source": "DANE TESTOWE (listopad)",
+  "voiceoverText": "Dzień dobry, Podkarpacie! Dzisiaj czwartek, dwunastego listopada. Imieniny obchodzą Renata i Witold. Słońce wstaje o szóstej trzydzieści dziewięć, a zachodzi o piętnastej pięćdziesiąt jeden. W dzień najcieplej w Przemyślu – dziesięć stopni, najchłodniej w Ustrzykach Górnych – jeden stopień. Wieje z zachodu, w porywach do pięćdziesięciu kilometrów na godzinę w Ustrzykach Dolnych. W Bieszczadach pada śnieg, a na Pogórzu popada deszcz, poza tym sucho. W nocy najzimniej w Polańczyku – minus pięć stopni. Myśl na dziś: Co nagle, to po diable. Miłego dnia!",
+  "lektor": {
+    "intro": "Dzień dobry, Podkarpacie! Dzisiaj czwartek, dwunastego listopada. Imieniny obchodzą Renata i Witold. Słońce wstaje o szóstej trzydzieści dziewięć, a zachodzi o piętnastej pięćdziesiąt jeden.",
+    "mapa": "W dzień najcieplej w Przemyślu – dziesięć stopni, najchłodniej w Ustrzykach Górnych – jeden stopień. Wieje z zachodu, w porywach do pięćdziesięciu kilometrów na godzinę w Ustrzykach Dolnych. W Bieszczadach pada śnieg, a na Pogórzu popada deszcz, poza tym sucho. W nocy najzimniej w Polańczyku – minus pięć stopni.",
+    "mysl": "Myśl na dziś: Co nagle, to po diable. Miłego dnia!"
+  },
+  "mapa": {
+    "zjawisko": {
+      "kind": "snieg",
+      "text": "W Bieszczadach pada śnieg",
+      "lon": 22.55163333333333,
+      "lat": 49.3006
+    },
+    "windDeg": 256,
+    "windAvg": 20,
+    "fazy": {
+      "dzien": [
+        0,
+        0.6109324758842444
+      ],
+      "zjawisko": [
+        0.6109324758842444,
+        0.8360128617363344
+      ],
+      "noc": [
+        0.8360128617363344,
+        1
+      ]
+    }
+  },
+  "ctaText": "Zostawcie serduszko, wyślijcie prognozę znajomym i obserwujcie Podkarpacie ze smakiem! Miłego dnia!",
+  "cta": false
 }

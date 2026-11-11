@@ -13,9 +13,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as Astronomy from "astronomy-engine";
-import { ACTIVE_AD, DEFAULT_CARD, ADS, AD_SCHEDULE, ALL_CARDS, BACKGROUND_MODE, CITIES, KIND_LABEL, PROJECT_CARDS, SUN_CITY } from "../src/config";
+import { ACTIVE_AD, DEFAULT_CARD, ADS, AD_SCHEDULE, BACKGROUND_MODE, CITIES, PROJECT_CARDS, REGION_LOC, SUN_CITY } from "../src/config";
 import { pickDay, pickMaxim, pickCta, pickImieniny, imionaSay } from "../src/dzien";
-import type { CityForecast, Forecast, Warning, WeatherKind } from "../src/types";
+import type { CityForecast, Forecast, Lektor, MapaInfo, Warning, WeatherKind } from "../src/types";
 
 const TZ = "Europe/Warsaw";
 const args = process.argv.slice(2);
@@ -47,6 +47,17 @@ const CITY_TERYT: Record<string, string> = {
   Tarnobrzeg: "1864",
   Polańczyk: "1821", // pow. leski
   Dukla: "1807", // pow. krośnieński
+  "Stalowa Wola": "1818",
+  Mielec: "1811",
+  Leżajsk: "1808",
+  Dębica: "1803",
+  Łańcut: "1810",
+  Jarosław: "1804",
+  Lubaczów: "1809",
+  Jasło: "1805",
+  Sanok: "1817",
+  "Ustrzyki Dolne": "1801", // pow. bieszczadzki
+  "Ustrzyki Górne": "1801",
 };
 
 async function getJson(url: string) {
@@ -129,6 +140,7 @@ export function summarize(name: string, hours: Hour[], date: string): CityForeca
     wind: Math.round(windMax.wind),
     gust: Math.round(gust),
     windDir: windDir(windMax.dir),
+    windDeg: Math.round(windMax.dir),
   };
 }
 
@@ -220,39 +232,111 @@ const MONTH_GEN = ["stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
 const HOUR_GEN = ["północy", "pierwszej", "drugiej", "trzeciej", "czwartej", "piątej", "szóstej", "siódmej", "ósmej", "dziewiątej", "dziesiątej", "jedenastej", "dwunastej", "trzynastej", "czternastej", "piętnastej", "szesnastej", "siedemnastej", "osiemnastej", "dziewiętnastej", "dwudziestej", "dwudziestej pierwszej", "dwudziestej drugiej", "dwudziestej trzeciej"];
 const minSay = (m: number) => (m === 0 ? "" : " " + (m < 10 ? "zero " + num(m) : num(m)));
 const timeGen = (hm: string) => { const [h, m] = hm.split(":").map(Number); return HOUR_GEN[h] + minSay(m); };
-const LOC: Record<string, string> = { "Rzeszów": "w Rzeszowie", "Krosno": "w Krośnie", "Przemyśl": "w Przemyślu", "Tarnobrzeg": "w Tarnobrzegu", "Polańczyk": "w Polańczyku", "Dukla": "w Dukli" };
-const KIND_SAY: Record<string, string> = {
-  slonce: "Zapowiada się słoneczny dzień", czesciowe: "Czeka nas dzień z przejaśnieniami", pochmurno: "Dzień raczej pochmurny",
-  deszcz: "Przyda się parasol – miejscami popada", burza: "Możliwe burze", snieg: "Szykujcie się na śnieg",
-  mgla: "Dzień zacznie się we mgle", gololedz: "Uwaga na gołoledź", zamiec: "Uwaga, zamieć śnieżna",
+const DAYS_PL = ["niedziela", "poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota"];
+const FROM_DIR = ["z północy", "z północnego wschodu", "ze wschodu", "z południowego wschodu", "z południa", "z południowego zachodu", "z zachodu", "z północnego zachodu"];
+const fromDir = (deg: number) => FROM_DIR[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+const WET: Record<string, { sev: number; say: string }> = {
+  burza: { sev: 6, say: "możliwe burze" }, zamiec: { sev: 5, say: "zamieć śnieżna" }, gololedz: { sev: 5, say: "uwaga na gołoledź" },
+  snieg: { sev: 4, say: "pada śnieg" }, deszcz: { sev: 3, say: "popada deszcz" }, mgla: { sev: 2, say: "gęste mgły" },
+};
+const loc = (name: string) => CITIES.find((c) => c.name === name)?.loc ?? `w ${name}`;
+/** „do pięćdziesięciu pięciu kilometrów na godzinę” (dopełniacz) */
+const GEN_T: Record<number, string> = { 10: "dziesięciu", 20: "dwudziestu", 30: "trzydziestu", 40: "czterdziestu", 50: "pięćdziesięciu", 60: "sześćdziesięciu", 70: "siedemdziesięciu", 80: "osiemdziesięciu", 90: "dziewięćdziesięciu" };
+const kmh = (n: number) => {
+  const r = Math.min(120, Math.max(10, Math.round(n / 5) * 5));
+  const t = Math.floor(r / 10) * 10;
+  const w = r >= 100 ? "stu" + (r > 100 ? " " + (GEN_T[r - 100] ?? "") : "") : (r % 10 === 5 ? (r === 15 ? "piętnastu" : `${GEN_T[t]} pięciu`) : GEN_T[t]);
+  return `${w.trim()} kilometrów na godzinę`;
 };
 
-/** Tekst dla lektora: zawsze dynamiczne otwarcie, potem prognoza, myśl dnia, pożegnanie. ~25 s. */
-function voiceText(f: Omit<Forecast, "voiceoverText">): string {
-  const DAYS_PL = ["niedziela", "poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota"];
+/** Wersja 2: lektor w trzech częściach + informacje dla mapy (co pokazać i kiedy). */
+function buildV2(f: Omit<Forecast, "voiceoverText">): { lektor: Lektor; mapa: MapaInfo } {
   const d = new Date(`${f.date}T12:00:00Z`);
-  const byT = [...f.cities].sort((a, b) => b.tDay - a.tDay);
-  const hot = byT[0], cold = byT[byT.length - 1];
-  const rz = f.cities.find((c) => c.name === "Rzeszów") ?? f.cities[0];
-  const minNight = Math.min(...f.cities.map((c) => c.tNight));
-  const warn = f.warnings.map((w) => w.event.toLowerCase().replace(/do (\d{1,2}:\d{2})/g, (_, t) => "do " + timeGen(t)));
-  const imiona = f.imieniny?.length ? `, imieniny obchodzą ${imionaSay(f.imieniny)}` : "";
-  const parts = [
-    `Dzień dobry, Podkarpacie! Dzisiaj ${DAYS_PL[d.getUTCDay()]}, ${dayGen(d.getUTCDate())} ${MONTH_GEN[d.getUTCMonth()]}${imiona}.`,
-    `${KIND_SAY[f.background] ?? KIND_LABEL[f.background]}.`,
-    hot.tDay === cold.tDay
-      ? `W całym regionie około ${tSay(hot.tDay)}.`
-      : `Najcieplej ${LOC[hot.name] ?? hot.name} – ${tSay(hot.tDay)}, najchłodniej ${LOC[cold.name] ?? cold.name} – ${tSay(cold.tDay)}.` +
-        (rz !== hot && rz !== cold ? ` W Rzeszowie ${tSay(rz.tDay)}.` : ""),
-    minNight <= 0 ? `Nocą przymrozek, nawet ${tSay(minNight)}.` : "",
-    warn.length ? `Uwaga, IMGW ostrzega: ${warn.join(" oraz ")}.` : "",
-    f.fullMoon ? "A wieczorem na niebie pełnia księżyca." : "",
+  const imiona = f.imieniny?.length ? ` Imieniny obchodzą ${imionaSay(f.imieniny)}.` : "";
+  const intro = [
+    `Dzień dobry, Podkarpacie! Dzisiaj ${DAYS_PL[d.getUTCDay()]}, ${dayGen(d.getUTCDate())} ${MONTH_GEN[d.getUTCMonth()]}.${imiona}`,
+    `Słońce wstaje o ${timeGen(f.sunrise)}, a zachodzi o ${timeGen(f.sunset)}.`,
     f.dayNote ? `Dziś ${f.dayNote}!` : "",
-    `Myśl na dziś: ${f.maxim}`,
-  ];
-  const card = ALL_CARDS().find((c) => c.id === f.endCard);
-  if (card && ADS.some((a) => a.id === card.id)) parts.push(`Prognozę przygotował dla was ${card.title}.`);
-  return parts.filter(Boolean).join(" ");
+    f.fullMoon ? "Wieczorem pełnia księżyca." : "",
+  ].filter(Boolean).join(" ");
+
+  // dzień: najcieplej / najchłodniej
+  const byD = [...f.cities].sort((a, b) => b.tDay - a.tDay);
+  const hot = byD[0], cold = byD[byD.length - 1];
+  const dzien = hot.tDay === cold.tDay
+    ? `W dzień w całym regionie około ${tSay(hot.tDay)}.`
+    : `W dzień najcieplej ${loc(hot.name)} – ${tSay(hot.tDay)}, najchłodniej ${loc(cold.name)} – ${tSay(cold.tDay)}.`;
+
+  // wiatr: przeważający kierunek (średnia wektorowa), porywy
+  let vx = 0, vy = 0;
+  f.cities.forEach((c) => { const r = ((c.windDeg ?? 270) * Math.PI) / 180; vx += Math.sin(r) * c.wind; vy += Math.cos(r) * c.wind; });
+  const windDeg = (Math.round((Math.atan2(vx, vy) * 180) / Math.PI) + 360) % 360;
+  const windAvg = f.cities.reduce((a, c) => a + c.wind, 0) / f.cities.length;
+  const gustMax = f.cities.reduce((a, c) => (c.gust > a.gust ? c : a));
+  const wiatr = windAvg < 8 ? "Wiatr słaby." :
+    `Wieje ${fromDir(windDeg)}${gustMax.gust >= 45 ? `, w porywach do ${kmh(gustMax.gust)} ${loc(gustMax.name)}` : ""}.`;
+
+  // opady / zjawiska: pogrupowane po regionach
+  const wet = f.cities.filter((c) => WET[c.kind]);
+  let zjawisko: MapaInfo["zjawisko"] = null;
+  let opady: string;
+  if (!wet.length) opady = "Bez opadów.";
+  else if (wet.length >= f.cities.length * 0.75) {
+    const k = [...wet].sort((a, b) => WET[b.kind].sev - WET[a.kind].sev)[0].kind;
+    opady = `W całym regionie ${WET[k].say}.`;
+    zjawisko = { kind: k, text: `W całym regionie ${WET[k].say}`, lon: 22.2, lat: 49.85 };
+  } else {
+    const groups = new Map<string, { kind: WeatherKind; cities: string[] }>();
+    for (const c of wet) {
+      const reg = CITIES.find((x) => x.name === c.name)!.region;
+      const g = groups.get(reg);
+      if (!g || WET[c.kind].sev > WET[g.kind].sev) groups.set(reg, { kind: c.kind, cities: [...(g?.cities ?? []), c.name] });
+      else g.cities.push(c.name);
+    }
+    const parts = [...groups.entries()].sort((a, b) => WET[b[1].kind].sev - WET[a[1].kind].sev);
+    const say = parts.slice(0, 2).map(([reg, g]) => (g.cities.length === 1 ? `${loc(g.cities[0])} ${WET[g.kind].say}` : `${REGION_LOC[reg]} ${WET[g.kind].say}`));
+    opady = say.map((x, i) => (i === 0 ? x[0].toUpperCase() + x.slice(1) : x)).join(", a ") + (wet.length < f.cities.length / 2 ? ", poza tym sucho." : ".");
+    const [reg, g] = parts[0];
+    const pts = CITIES.filter((c) => g.cities.includes(c.name));
+    zjawisko = {
+      kind: g.kind,
+      text: (g.cities.length === 1 ? `${loc(g.cities[0])} ${WET[g.kind].say}` : `${REGION_LOC[reg]} ${WET[g.kind].say}`).replace(/^./, (x) => x.toUpperCase()),
+      lon: pts.reduce((a, c) => a + c.lon, 0) / pts.length,
+      lat: pts.reduce((a, c) => a + c.lat, 0) / pts.length,
+    };
+  }
+
+  // noc
+  const byN = [...f.cities].sort((a, b) => a.tNight - b.tNight);
+  const frost = f.cities.filter((c) => c.tNight <= 0).length;
+  const noc = `W nocy najzimniej ${loc(byN[0].name)} – ${tSay(byN[0].tNight)}` +
+    (frost >= f.cities.length * 0.6 ? ", przymrozki w większości regionu." : frost ? "." : `, najcieplej ${loc(byN[byN.length - 1].name)} – ${tSay(byN[byN.length - 1].tNight)}.`);
+  const warn = f.warnings.map((w) => w.event.toLowerCase().replace(/do (\d{1,2}:\d{2})/g, (_, t) => "do " + timeGen(t)));
+  const ostrz = warn.length ? ` Uwaga, IMGW ostrzega: ${warn.join(" oraz ")}.` : "";
+
+  // kolejność: dzień → wiatr → opady (zbliżenie) → noc; czas faz wg długości zdań
+  const segs = [dzien + " " + wiatr, zjawisko ? opady : "", noc + ostrz];
+  const total = segs.reduce((a, x) => a + x.length, 0) + (zjawisko ? 0 : opady.length);
+  const l0 = (segs[0].length + (zjawisko ? 0 : opady.length)) / total;
+  const l1 = segs[1].length / total;
+  const mapaText = zjawisko ? `${segs[0]} ${opady} ${segs[2]}` : `${segs[0]} ${opady} ${segs[2]}`;
+  return {
+    lektor: { intro, mapa: mapaText, mysl: `Myśl na dziś: ${f.maxim} Miłego dnia!` + (ADS.find((a) => a.id === f.endCard) ? ` Prognozę przygotował dla was ${ADS.find((a) => a.id === f.endCard)!.title}.` : "") },
+    mapa: {
+      zjawisko,
+      windDeg,
+      windAvg: Math.round(windAvg),
+      fazy: zjawisko
+        ? { dzien: [0, l0], zjawisko: [l0, l0 + l1], noc: [l0 + l1, 1] }
+        : { dzien: [0, l0], zjawisko: null, noc: [l0, 1] },
+    },
+  };
+}
+
+/** Tekst dla lektora (wersja 1, cały ciągiem) – zostaje dla zgodności */
+function voiceText(f: Omit<Forecast, "voiceoverText">): string {
+  const v = buildV2(f);
+  return `${v.lektor.intro} ${v.lektor.mapa} ${v.lektor.mysl}`;
 }
 
 function nextDay(d: string) {
@@ -261,41 +345,46 @@ function nextDay(d: string) {
   return t.toISOString().slice(0, 10);
 }
 
-/* ---------- dane testowe ---------- */
+/* ---------- dane testowe (17 miejscowości; wiersz = region) ---------- */
+type Row = [WeatherKind, number, number, number, number, number, number]; // kind, tDay, tNight, pop, wind, gust, windDeg
 function mock(scenario: string): { cities: CityForecast[]; warnings: Warning[] } {
-  const S: Record<string, [WeatherKind, number, number, number, number, number][]> = {
-    zima: [
-      ["snieg", 1, -4, 80, 18, 35], ["snieg", 0, -5, 85, 15, 30], ["pochmurno", 2, -3, 40, 20, 38],
-      ["czesciowe", 2, -2, 20, 22, 40], ["zamiec", -2, -8, 90, 35, 62], ["snieg", -1, -6, 85, 16, 34],
-    ],
-    lato: [
-      ["slonce", 27, 15, 5, 10, 22], ["slonce", 26, 13, 5, 8, 18], ["czesciowe", 27, 14, 15, 12, 25],
-      ["slonce", 28, 15, 5, 11, 21], ["czesciowe", 24, 11, 25, 9, 20], ["slonce", 25, 12, 10, 8, 17],
-    ],
-    burza: [
-      ["burza", 29, 18, 75, 20, 70], ["deszcz", 26, 16, 70, 15, 45], ["burza", 28, 17, 80, 18, 65],
-      ["burza", 30, 19, 70, 22, 72], ["deszcz", 24, 14, 85, 14, 40], ["deszcz", 25, 15, 75, 13, 38],
-    ],
-    mgla: [
-      ["mgla", 6, 1, 10, 6, 12], ["mgla", 5, 0, 10, 5, 10], ["pochmurno", 7, 2, 20, 8, 15],
-      ["mgla", 6, 1, 10, 6, 11], ["gololedz", 2, -3, 60, 7, 14], ["mgla", 4, -1, 15, 5, 9],
-    ],
+  const R: Record<string, Record<string, Row>> = {
+    listopad: {
+      polnoc: ["pochmurno", 7, 1, 20, 18, 34, 270], centrum: ["czesciowe", 8, 1, 15, 20, 38, 265], wschod: ["slonce", 9, 2, 5, 16, 30, 260],
+      pogorze: ["deszcz", 6, -1, 70, 22, 45, 250], bieszczady: ["snieg", 2, -4, 85, 26, 52, 240],
+    },
+    zima: {
+      polnoc: ["czesciowe", 1, -6, 20, 15, 30, 300], centrum: ["snieg", 0, -5, 80, 18, 35, 290], wschod: ["pochmurno", 0, -6, 40, 16, 32, 300],
+      pogorze: ["snieg", -1, -7, 85, 20, 40, 280], bieszczady: ["zamiec", -4, -11, 90, 35, 65, 270],
+    },
+    lato: {
+      polnoc: ["slonce", 28, 15, 5, 10, 22, 90], centrum: ["slonce", 27, 14, 5, 9, 20, 100], wschod: ["czesciowe", 27, 14, 15, 12, 25, 120],
+      pogorze: ["burza", 26, 13, 60, 12, 55, 200], bieszczady: ["burza", 23, 11, 70, 10, 50, 210],
+    },
+    mgla: {
+      polnoc: ["mgla", 6, 1, 10, 5, 10, 180], centrum: ["mgla", 6, 0, 10, 5, 10, 180], wschod: ["pochmurno", 7, 2, 20, 8, 15, 200],
+      pogorze: ["mgla", 5, -1, 15, 5, 9, 190], bieszczady: ["gololedz", 2, -3, 60, 7, 14, 210],
+    },
   };
-  const rows = S[scenario] ?? S.zima;
-  const dirs = ["zach.", "pd.-zach.", "zach.", "pn.-zach.", "pd.", "zach."];
-  const cities = rows.map(([kind, tDay, tNight, pop, wind, gust], i) => ({
-    name: CITIES[i].name, kind, tDay, tNight, pop, wind, gust, windDir: dirs[i],
-  }));
+  const S = R[scenario] ?? R.listopad;
+  const DIRS8 = ["pn.", "pn.-wsch.", "wsch.", "pd.-wsch.", "pd.", "pd.-zach.", "zach.", "pn.-zach."];
+  const cities = CITIES.map((c, i) => {
+    const [kind, tDay, tNight, pop, wind, gust, deg] = S[c.region];
+    const j = (i % 3) - 1; // drobne różnice między miastami regionu
+    return { name: c.name, kind, tDay: tDay + j, tNight: tNight + (i % 2 ? -1 : 0), pop, wind: wind + j * 2, gust, windDir: DIRS8[Math.round(deg / 45) % 8], windDeg: deg + j * 8 };
+  });
+  // najwyżej położone: chłodniej
+  const ug = cities.find((c) => c.name === "Ustrzyki Górne")!; ug.tDay -= 1; ug.tNight -= 1;
   const warnings: Warning[] =
-    scenario === "zima" ? [{ event: "Intensywne opady śniegu", level: 1, area: "Polańczyk, Dukla" }]
-    : scenario === "burza" ? [{ event: "Burze z gradem", level: 2, area: "Rzeszów, Przemyśl, Tarnobrzeg" }]
-    : scenario === "mgla" ? [{ event: "Gęsta mgła", level: 1, area: "część regionu" }, { event: "Oblodzenie", level: 1, area: "Polańczyk" }]
+    scenario === "zima" ? [{ event: "Intensywne opady śniegu", level: 1, area: "Ustrzyki Górne, Polańczyk" }]
+    : scenario === "lato" ? [{ event: "Burze z gradem", level: 2, area: "Krosno, Sanok, Ustrzyki Dolne" }]
+    : scenario === "mgla" ? [{ event: "Gęsta mgła", level: 1, area: "część regionu" }]
     : [];
   return { cities, warnings };
 }
 
 async function main() {
-  const mockScenario = args.includes("--mock") ? arg("--mock") ?? "zima" : null;
+  const mockScenario = args.includes("--mock") ? arg("--mock") ?? "listopad" : null;
   const { cities, warnings } = mockScenario ? mock(mockScenario) : { cities: await fetchCities(), warnings: await fetchWarnings() };
   const a = astro();
   const base = {
@@ -313,7 +402,8 @@ async function main() {
     voiceover: fs.existsSync(path.join(__dirname, "..", "public", "data", "lektor.mp3")),
     source: mockScenario ? `DANE TESTOWE (${mockScenario})` : "Dane: MET Norway (CC BY 4.0) · ostrzeżenia: IMGW-PIB",
   };
-  const forecast: Forecast = { ...base, voiceoverText: voiceText(base), ctaText: pickCta(DATE), cta: false };
+  const v2 = buildV2(base);
+  const forecast: Forecast = { ...base, voiceoverText: voiceText(base), lektor: v2.lektor, mapa: v2.mapa, ctaText: pickCta(DATE), cta: false };
   const out = path.join(__dirname, "..", "public", "data", "forecast.json");
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, JSON.stringify(forecast, null, 2));

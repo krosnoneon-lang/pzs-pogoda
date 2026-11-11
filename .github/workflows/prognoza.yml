@@ -41,7 +41,7 @@ permissions:
 jobs:
   prognoza:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 180
     env:
       TZ: Europe/Warsaw
     steps:
@@ -101,7 +101,8 @@ jobs:
 
       - name: Render wideo
         if: steps.guard.outputs.run == 'true'
-        run: npx remotion render PrognozaPogody out/prognoza.mp4 --props=public/data/forecast.json --codec=h264 --crf=20
+        # wersja 2: plansza + mapa 3D (WebGL bez karty graficznej = --gl=swangle, render ok. 1–2 h)
+        run: npx remotion render PrognozaMapa out/prognoza.mp4 --props=public/data/forecast.json --codec=h264 --crf=20 --gl=swangle --concurrency=2 --timeout=240000
 
       - name: Zapis wideo jako artefakt (do podglądu)
         if: steps.guard.outputs.run == 'true'

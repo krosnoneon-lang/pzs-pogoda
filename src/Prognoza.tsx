@@ -72,7 +72,7 @@ const dateLabel = (iso: string) => {
 const text: React.CSSProperties = { fontFamily: FONT_FAMILY, color: COLORS.white };
 
 /* ---------- tło: wolny najazd, lekka winieta ---------- */
-const Background: React.FC<{ file: string; blur?: number }> = ({ file, blur = 0 }) => {
+export const Background: React.FC<{ file: string; blur?: number }> = ({ file, blur = 0 }) => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   const scale = interpolate(frame, [0, durationInFrames], [1.0, 1.07], clamp);
@@ -85,7 +85,7 @@ const Background: React.FC<{ file: string; blur?: number }> = ({ file, blur = 0 
 };
 
 /* ---------- góra: logo + data ---------- */
-const Header: React.FC<{ date: string }> = ({ date }) => {
+export const Header: React.FC<{ date: string }> = ({ date }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const pLogo = spring({ frame: frame - 4, fps, config: { damping: 200 } });
@@ -227,7 +227,7 @@ const BottomInfo: React.FC<{ f: Forecast }> = ({ f }) => {
 };
 
 /* ---------- plansza końcowa: sponsor albo projekt ---------- */
-const EndCardView: React.FC<{ card: EndCard; bg: string; duck?: boolean }> = ({ card, bg, duck }) => {
+export const EndCardView: React.FC<{ card: EndCard; bg: string; duck?: boolean }> = ({ card, bg, duck }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const p = spring({ frame: frame - 6, fps, config: { damping: 200 } });
@@ -296,7 +296,7 @@ const EndCardView: React.FC<{ card: EndCard; bg: string; duck?: boolean }> = ({ 
 };
 
 /* ---------- plansza „Na dobry początek dnia” ---------- */
-const MorningCard: React.FC<{ f: Forecast; bg: string }> = ({ f, bg }) => {
+export const MorningCard: React.FC<{ f: Forecast; bg: string }> = ({ f, bg }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const p1 = spring({ frame: frame - 6, fps, config: { damping: 200 } });

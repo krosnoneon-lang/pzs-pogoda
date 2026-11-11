@@ -147,7 +147,7 @@ export const VOICEOVER = {
   /** ElevenLabs: Jacek Placek (dynamiczny, reklamowy) */
   voiceId: "fbNqWJ0FaV9a6IT2gr16",
   model: "eleven_multilingual_v2",
-  settings: { stability: 0.4, similarity_boost: 0.8, style: 0.45, use_speaker_boost: true },
+  settings: { stability: 0.4, similarity_boost: 0.8, style: 0.45, use_speaker_boost: true, speed: 1.1 },
 };
 
 /* ------------------------------------------------------------------ */

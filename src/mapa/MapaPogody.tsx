@@ -189,7 +189,16 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number }> = ({ f, dur }) =
     if (!map) return;
     const h = delayRender(`Mapa klatka ${frame}`);
     map.jumpTo({ center: [cam.lng, cam.lat], zoom: cam.zoom, pitch: cam.pitch, bearing: cam.bearing });
-    map.once("idle", () => {
+    // „idle” czasem nie przychodzi (karta w tle, brak zmian) – zapas: po narysowaniu klatki i wczytaniu kafli
+    let fired = false;
+    const whenReady = (cb: () => void) => {
+      const go = () => { if (!fired) { fired = true; cb(); } };
+      map.once("idle", go);
+      const check = () => { if (fired) return; if (map.areTilesLoaded()) go(); else setTimeout(check, 100); };
+      map.once("render", () => setTimeout(check, 60));
+      setTimeout(go, 20000);
+    };
+    whenReady(() => {
       cities.forEach((c, i) => {
         const p = map.project([c.cfg!.lon, c.cfg!.lat]);
         for (const night of [false, true]) {

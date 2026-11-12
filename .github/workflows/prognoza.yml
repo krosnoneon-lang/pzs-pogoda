@@ -81,7 +81,7 @@ jobs:
       - name: Sponsor pogody (arkusz Google / harmonogram w repo)
         if: steps.guard.outputs.run == 'true'
         env:
-          SPONSOR_SHEET_ID: ${{ vars.SPONSOR_SHEET_ID }}
+          SPONSOR_SHEET_ID: ${{ vars.SPONSOR_SHEET_ID || '150ARmkz7CAIWw6djW2-YHjYSfD2SmuIV3bBNS9M9WIw' }}
         run: |
           EXTRA=""
           if [ -n "${{ github.event.inputs.date }}" ]; then EXTRA="--date ${{ github.event.inputs.date }}"; fi

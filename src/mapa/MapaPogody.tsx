@@ -169,9 +169,9 @@ const SPW = 150, SPH = 112;
 const SponsorPin = React.forwardRef<HTMLDivElement, { s: NonNullable<Forecast["sponsor"]>; o: number }>(({ s, o }, ref) => (
   <div ref={ref} style={{ position: "absolute", left: 0, top: 0, zIndex: 20, opacity: o }}>
     <div style={{ position: "absolute", transform: "translate(-50%, -100%)", display: "flex", flexDirection: "column", alignItems: "center" }}>
-      <div style={{ width: SPW, background: "rgba(255,255,255,0.96)", borderRadius: 18, padding: "8px 10px 6px", boxShadow: "0 0 0 3px #FFD23F, 0 8px 26px rgba(0,0,0,0.55)", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-        {s.logo ? <Img src={staticFile(s.logo)} style={{ width: SPW - 24, height: 58, objectFit: "contain" }} /> : <div style={{ ...text, color: "#111", fontWeight: 900, fontSize: 22, textAlign: "center", lineHeight: 1.05 }}>{s.nazwa}</div>}
-        <div style={{ ...text, color: "#333", fontWeight: 800, fontSize: 13, letterSpacing: 1, textTransform: "uppercase", whiteSpace: "nowrap" }}>Sponsor pogody</div>
+      <div style={{ width: SPW, background: "rgba(10,16,32,0.92)", borderRadius: 18, padding: "8px 10px 6px", boxShadow: "0 0 0 3px #FFD23F, 0 8px 26px rgba(0,0,0,0.55)", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+        {s.logo ? <Img src={staticFile(s.logo)} style={{ width: SPW - 24, height: 58, objectFit: "contain" }} /> : <div style={{ ...text, fontWeight: 900, fontSize: 22, textAlign: "center", lineHeight: 1.05 }}>{s.nazwa}</div>}
+        <div style={{ ...text, color: "#FFD23F", fontWeight: 800, fontSize: 13, letterSpacing: 1, textTransform: "uppercase", whiteSpace: "nowrap" }}>Sponsor pogody</div>
       </div>
       <div style={{ width: 0, height: 0, borderLeft: "10px solid transparent", borderRight: "10px solid transparent", borderTop: "14px solid #FFD23F" }} />
       <div style={{ width: 14, height: 14, borderRadius: "50%", background: "#FFD23F", border: "3px solid #fff", transform: "translateY(-2px)" }} />

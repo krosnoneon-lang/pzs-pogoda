@@ -54,7 +54,7 @@ const Card = React.forwardRef<HTMLDivElement, { name: string; kind: WeatherKind 
                   </span>
                 ) : null}
               </div>
-              <div style={{ ...text, fontWeight: 700, fontSize: 15 * k, color: COLORS.muted, whiteSpace: "nowrap", marginTop: 2 }}>{name}</div>
+              <div style={{ ...text, fontWeight: BIG.has(name) ? 900 : 700, fontSize: (BIG.has(name) ? 22 : 15) * k, color: BIG.has(name) ? COLORS.white : COLORS.muted, letterSpacing: BIG.has(name) ? 0.5 : 0, whiteSpace: "nowrap", marginTop: 2 }}>{BIG.has(name) ? name.toUpperCase() : name}</div>
             </div>
           </div>
           <div style={{ width: 2, height: 12, background: "rgba(255,255,255,0.6)" }} />
@@ -114,6 +114,9 @@ const Zjawisko: React.FC<{ kind: WeatherKind; frame: number; opacity: number }> 
   );
 };
 
+/** największe miasta – nazwa większymi literami */
+const BIG = new Set(["Rzeszów", "Krosno", "Przemyśl", "Tarnobrzeg"]);
+
 /* ---------- rozsuwanie chmurek: każda dostaje miejsce bez nakładania; ważniejsze pierwsze ---------- */
 type Rect = { x0: number; y0: number; x1: number; y1: number };
 type Place = { below: boolean; dx: number };
@@ -139,13 +142,17 @@ const layout = (items: Item[], last: Map<string, Place>, top: number, bottom: nu
       { below: it.dol, dx: 0 }, { below: !it.dol, dx: 0 },
       { below: it.dol, dx: -s }, { below: it.dol, dx: s }, { below: !it.dol, dx: -s }, { below: !it.dol, dx: s },
     ];
+    if (it.prio >= 70) {
+      const s2 = Math.round(w * 0.46);
+      base.push({ below: it.dol, dx: -s2 }, { below: it.dol, dx: s2 }, { below: !it.dol, dx: -s2 }, { below: !it.dol, dx: s2 });
+    }
     const cands = prev ? [prev, ...base] : base;
     let ok: Place | null = null;
     for (const pl of cands) {
       const r = rectOf(it.x, it.y, w, h, pl);
       if (r.y0 < top || r.y1 > bottom || r.x0 < 8 || r.x1 > W - 8) continue;
       if (placed.some((q) => hit(q, r))) continue;
-      if (dots.some((d) => hit(d, r) && !(d.x0 === it.x - 8 && d.y0 === it.y - 8))) continue;
+      if (it.prio < 70 && dots.some((d) => hit(d, r) && !(d.x0 === it.x - 8 && d.y0 === it.y - 8))) continue;
       ok = pl; break;
     }
     if (!ok && it.prio >= 100) ok = cands[0]; // max / min zawsze widoczne (na wierzchu)
@@ -165,16 +172,19 @@ const applyPlace = (el: HTMLDivElement, pl: Place) => {
 };
 
 /* ---------- znacznik sponsora: przez całą prognozę ---------- */
-const SPW = 150, SPH = 112;
+const SPW = 116, SPH = 86;
+/** czy plakietka ma wisieć POD punktem (gdy nad nim leży któreś z głównych miast) */
+const pinBelow = (s: { lat: number; lon: number }) =>
+  CITIES.some((c) => c.lat - s.lat > 0.03 && c.lat - s.lat < 0.32 && Math.abs(c.lon - s.lon) < 0.3);
 const SponsorPin = React.forwardRef<HTMLDivElement, { s: NonNullable<Forecast["sponsor"]>; o: number }>(({ s, o }, ref) => (
   <div ref={ref} style={{ position: "absolute", left: 0, top: 0, zIndex: 20, opacity: o }}>
-    <div style={{ position: "absolute", transform: "translate(-50%, -100%)", display: "flex", flexDirection: "column", alignItems: "center" }}>
+    <div style={{ position: "absolute", transform: pinBelow(s) ? "translate(-50%, 0)" : "translate(-50%, -100%)", display: "flex", flexDirection: pinBelow(s) ? "column-reverse" : "column", alignItems: "center" }}>
       <div style={{ width: SPW, background: "rgba(10,16,32,0.92)", borderRadius: 18, padding: "8px 10px 6px", boxShadow: "0 0 0 3px #FFD23F, 0 8px 26px rgba(0,0,0,0.55)", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-        {s.logo ? <Img src={staticFile(s.logo)} style={{ width: SPW - 24, height: 58, objectFit: "contain" }} /> : <div style={{ ...text, fontWeight: 900, fontSize: 22, textAlign: "center", lineHeight: 1.05 }}>{s.nazwa}</div>}
-        <div style={{ ...text, color: "#FFD23F", fontWeight: 800, fontSize: 13, letterSpacing: 1, textTransform: "uppercase", whiteSpace: "nowrap" }}>Sponsor pogody</div>
+        {s.logo ? <Img src={staticFile(s.logo)} style={{ width: SPW - 20, height: 42, objectFit: "contain" }} /> : <div style={{ ...text, fontWeight: 900, fontSize: 22, textAlign: "center", lineHeight: 1.05 }}>{s.nazwa}</div>}
+        <div style={{ ...text, color: "#FFD23F", fontWeight: 800, fontSize: 11, letterSpacing: 0.5, textTransform: "uppercase", whiteSpace: "nowrap" }}>Sponsor pogody</div>
       </div>
-      <div style={{ width: 0, height: 0, borderLeft: "10px solid transparent", borderRight: "10px solid transparent", borderTop: "14px solid #FFD23F" }} />
-      <div style={{ width: 14, height: 14, borderRadius: "50%", background: "#FFD23F", border: "3px solid #fff", transform: "translateY(-2px)" }} />
+      <div style={{ width: 0, height: 0, borderLeft: "10px solid transparent", borderRight: "10px solid transparent", ...(pinBelow(s) ? { borderBottom: "14px solid #FFD23F" } : { borderTop: "14px solid #FFD23F" }) }} />
+      <div style={{ width: 14, height: 14, borderRadius: "50%", background: "#FFD23F", border: "3px solid #fff", transform: pinBelow(s) ? "translate(0, 7px)" : "translateY(-2px)" }} />
     </div>
   </div>
 ));
@@ -285,6 +295,14 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number }>
     m.on("error", (e) => console.error("MapLibre:", e.error?.message ?? e));
     m.on("load", () => {
       for (const id of ["rail-czynna", "rail-czynna-podklady", "rail-budowa", "rail-planowana"]) m.setLayoutProperty(id, "visibility", "none");
+      // obrysy miast (granice administracyjne z OSM) – widać miasto także wtedy, gdy jego chmurka się chowa
+      m.addSource("obrysy", { type: "geojson", data: abs("mapa/data/obrysy.geojson") });
+      const main = ["in", ["get", "name"], ["literal", CITIES.map((c) => c.name)]] as unknown as maplibregl.FilterSpecification;
+      const extra = ["!", main] as unknown as maplibregl.FilterSpecification;
+      m.addLayer({ id: "obrysy-fill", type: "fill", source: "obrysy", filter: main, paint: { "fill-color": "#ffffff", "fill-opacity": 0.07 } });
+      m.addLayer({ id: "obrysy-line", type: "line", source: "obrysy", filter: main, paint: { "line-color": "#ffffff", "line-opacity": 0.75, "line-width": ["interpolate", ["linear"], ["zoom"], 7, 1.2, 10, 2.4] } });
+      m.addLayer({ id: "obrysy-extra-fill", type: "fill", source: "obrysy", filter: extra, paint: { "fill-color": "#8cc8ff", "fill-opacity": 0 } });
+      m.addLayer({ id: "obrysy-extra-line", type: "line", source: "obrysy", filter: extra, paint: { "line-color": "#8cc8ff", "line-opacity": 0, "line-width": ["interpolate", ["linear"], ["zoom"], 7, 1, 10, 2] } });
       m.once("idle", () => {
         setMap(m);
         continueRender(handle);
@@ -297,6 +315,10 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number }>
     if (!map) return;
     const h = delayRender(`Mapa klatka ${frame}`);
     map.jumpTo({ center: [cam.lng, cam.lat], zoom: cam.zoom, pitch: cam.pitch, bearing: cam.bearing });
+    if (map.getLayer("obrysy-extra-line")) {
+      map.setPaintProperty("obrysy-extra-line", "line-opacity", 0.7 * fx);
+      map.setPaintProperty("obrysy-extra-fill", "fill-opacity", 0.06 * fx);
+    }
     // „idle” czasem nie przychodzi (karta w tle, brak zmian) – zapas: po narysowaniu klatki i wczytaniu kafli
     let fired = false;
     const whenReady = (cb: () => void) => {
@@ -317,7 +339,7 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number }>
         cities.forEach((c, i) => {
           const hi = night ? c.tNight === minN : c.tDay === maxD;
           keys.push({
-            key: `${night ? "n" : "d"}${i}`, lon: c.cfg!.lon, lat: c.cfg!.lat, prio: hi ? 100 : 50 - i * 0.1, dol: "dol" in c.cfg! && !!c.cfg!.dol,
+            key: `${night ? "n" : "d"}${i}`, lon: c.cfg!.lon, lat: c.cfg!.lat, prio: hi ? 100 : BIG.has(c.name) ? 70 : 50 - i * 0.1, dol: "dol" in c.cfg! && !!c.cfg!.dol,
             vis: (q) => { const ph = phases(q); return Math.min(1, Math.max(0, (night ? ph.noc : ph.dzien) * cities.length - i * 0.55)); },
           });
         });
@@ -342,7 +364,7 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number }>
             items.push({ key: k.key, x: p.x, y: p.y, prio: k.prio, dol: k.dol, el, on: v > 0.01 && p.x > 0 && p.x < W && p.y > top && p.y < bottom });
           }
           const obst: Rect[] = [];
-          if (sp) { const q = tr.locationToScreenPoint(new maplibregl.LngLat(sp.lon, sp.lat), map.terrain ?? undefined); obst.push({ x0: q.x - SPW / 2 - 6, y0: q.y - SPH - 16, x1: q.x + SPW / 2 + 6, y1: q.y + 8 }); }
+          if (sp) { const q = tr.locationToScreenPoint(new maplibregl.LngLat(sp.lon, sp.lat), map.terrain ?? undefined); obst.push(pinBelow(sp) ? { x0: q.x - SPW / 2 - 6, y0: q.y - 8, x1: q.x + SPW / 2 + 6, y1: q.y + SPH + 16 } : { x0: q.x - SPW / 2 - 6, y0: q.y - SPH - 16, x1: q.x + SPW / 2 + 6, y1: q.y + 8 }); }
           for (const [kk, pl] of layout(items, new Map(), top, bottom, obst)) out.set(kk, { pl });
         }
         layoutCache.current.set(q, out);
@@ -355,6 +377,10 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number }>
       if (sp && spRef.current) {
         const q = map.project([sp.lon, sp.lat]);
         spRef.current.style.transform = `translate(${q.x.toFixed(1)}px, ${q.y.toFixed(1)}px)`;
+        // znacznik gaśnie, gdy wjeżdża pod nagłówek / dolny pas albo poza kadr
+        const yt = pinBelow(sp) ? q.y : q.y - SPH, yb = pinBelow(sp) ? q.y + SPH : q.y;
+        const lim = Math.min(progress(yt, SAFE.top + 240, SAFE.top + 290), 1 - progress(yb, H - SAFE.bottom - 190, H - SAFE.bottom - 150), progress(q.x, 40, 90), 1 - progress(q.x, W - 90, W - 40));
+        spRef.current.style.opacity = (progress(frame, 14, 30) * lim).toFixed(3);
       }
       for (const k of keys) {
         const el = refs.current.get(k.key);
@@ -446,7 +472,7 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number }>
           {f.warnings.slice(0, 2).map((w) => <div key={w.event} style={{ ...text, fontWeight: 800, fontSize: 30, lineHeight: 1.1 }}>{w.event}</div>)}
         </div>
       ) : null}
-      {sp ? <SponsorPin ref={spRef} s={sp} o={progress(frame, 14, 30)} /> : null}
+      {sp ? <SponsorPin ref={spRef} s={sp} o={0} /> : null}
       <div style={{ position: "absolute", left: 0, right: 0, bottom: 28, textAlign: "center", ...text, fontWeight: 500, fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
         Dane: MET Norway (CC BY 4.0) · mapa © OpenStreetMap contributors, AWS Terrain Tiles, GUGiK
       </div>

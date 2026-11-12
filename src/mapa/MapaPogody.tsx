@@ -124,9 +124,9 @@ const rectOf = (x: number, y: number, w: number, h: number, pl: Place): Rect => 
   return pl.below ? { x0, y0: y, x1: x0 + w, y1: y + h + STEM } : { x0, y0: y - h - STEM, x1: x0 + w, y1: y };
 };
 type Item = { key: string; x: number; y: number; prio: number; dol: boolean; el: HTMLDivElement; on: boolean };
-const layout = (items: Item[], last: Map<string, Place>, top: number, bottom: number): Map<string, Place | null> => {
+const layout = (items: Item[], last: Map<string, Place>, top: number, bottom: number, obst: Rect[] = []): Map<string, Place | null> => {
   const res = new Map<string, Place | null>();
-  const placed: Rect[] = [];
+  const placed: Rect[] = [...obst];
   // kropki miejscowości też są przeszkodą (chmurka nie zasłania innej miejscowości)
   const dots: Rect[] = items.filter((i) => i.on).map((i) => ({ x0: i.x - 8, y0: i.y - 8, x1: i.x + 8, y1: i.y + 8 }));
   for (const it of [...items].sort((a, b) => b.prio - a.prio)) {
@@ -164,21 +164,37 @@ const applyPlace = (el: HTMLDivElement, pl: Place) => {
   bub.style.transform = `translateX(${pl.dx}px)`;
 };
 
+/* ---------- znacznik sponsora: przez całą prognozę ---------- */
+const SPW = 150, SPH = 112;
+const SponsorPin = React.forwardRef<HTMLDivElement, { s: NonNullable<Forecast["sponsor"]>; o: number }>(({ s, o }, ref) => (
+  <div ref={ref} style={{ position: "absolute", left: 0, top: 0, zIndex: 20, opacity: o }}>
+    <div style={{ position: "absolute", transform: "translate(-50%, -100%)", display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div style={{ width: SPW, background: "rgba(255,255,255,0.96)", borderRadius: 18, padding: "8px 10px 6px", boxShadow: "0 0 0 3px #FFD23F, 0 8px 26px rgba(0,0,0,0.55)", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+        {s.logo ? <Img src={staticFile(s.logo)} style={{ width: SPW - 24, height: 58, objectFit: "contain" }} /> : <div style={{ ...text, color: "#111", fontWeight: 900, fontSize: 22, textAlign: "center", lineHeight: 1.05 }}>{s.nazwa}</div>}
+        <div style={{ ...text, color: "#333", fontWeight: 800, fontSize: 13, letterSpacing: 1, textTransform: "uppercase", whiteSpace: "nowrap" }}>Sponsor pogody</div>
+      </div>
+      <div style={{ width: 0, height: 0, borderLeft: "10px solid transparent", borderRight: "10px solid transparent", borderTop: "14px solid #FFD23F" }} />
+      <div style={{ width: 14, height: 14, borderRadius: "50%", background: "#FFD23F", border: "3px solid #fff", transform: "translateY(-2px)" }} />
+    </div>
+  </div>
+));
+SponsorPin.displayName = "SponsorPin";
+
 /* ---------- kompas: obraca się razem z mapą ---------- */
 const Kompas: React.FC<{ bearing: number; o: number }> = ({ bearing, o }) => {
-  const R = 58;
-  const lab = [["N", 0, "#FF5A5A"], ["E", 90, COLORS.white], ["S", 180, COLORS.white], ["W", 270, COLORS.white]] as const;
+  const R = 46;
+  const lab = [["N", 0, "#FFFFFF"], ["E", 90, "rgba(255,255,255,0.8)"], ["S", 180, "rgba(255,255,255,0.8)"], ["W", 270, "rgba(255,255,255,0.8)"]] as const;
   return (
-    <div style={{ position: "absolute", top: SAFE.top - 20, right: SAFE.side - 10, width: 2 * R + 40, height: 2 * R + 40, opacity: o }}>
+    <div style={{ position: "absolute", left: SAFE.side - 14, bottom: SAFE.bottom + 34, width: 2 * R + 40, height: 2 * R + 40, opacity: o }}>
       <svg width={2 * R + 40} height={2 * R + 40} viewBox={`${-R - 20} ${-R - 20} ${2 * R + 40} ${2 * R + 40}`}>
-        <circle r={R} fill="rgba(6,12,26,0.72)" stroke="rgba(255,255,255,0.28)" strokeWidth={2} />
+        <circle r={R} fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.85)" strokeWidth={2.5} />
         <g transform={`rotate(${-bearing})`}>
           {Array.from({ length: 16 }, (_, i) => <line key={i} x1={0} y1={-R + 4} x2={0} y2={-R + (i % 4 ? 9 : 14)} stroke="rgba(255,255,255,0.5)" strokeWidth={2} transform={`rotate(${i * 22.5})`} />)}
-          <path d={`M0 ${-R + 18} L9 0 L0 6 L-9 0 Z`} fill="#FF5A5A" />
-          <path d={`M0 ${R - 18} L9 0 L0 -6 L-9 0 Z`} fill="rgba(255,255,255,0.75)" />
+          <path d={`M0 ${-R + 16} L8 0 L0 5 L-8 0 Z`} fill="#FFFFFF" />
+          <path d={`M0 ${R - 16} L8 0 L0 -5 L-8 0 Z`} fill="rgba(255,255,255,0.35)" />
           {lab.map(([t, deg, col]) => {
             const r = ((deg as number) * Math.PI) / 180;
-            return <text key={t} x={Math.sin(r) * (R + 2)} y={-Math.cos(r) * (R + 2)} transform={`rotate(${bearing} ${Math.sin(r) * (R + 2)} ${-Math.cos(r) * (R + 2)})`} textAnchor="middle" dominantBaseline="central" style={{ fontFamily: FONT_FAMILY, fontWeight: 900, fontSize: 22, fill: col, paintOrder: "stroke", stroke: "#060b16", strokeWidth: 5 }}>{t}</text>;
+            return <text key={t} x={Math.sin(r) * (R + 2)} y={-Math.cos(r) * (R + 2)} transform={`rotate(${bearing} ${Math.sin(r) * (R + 2)} ${-Math.cos(r) * (R + 2)})`} textAnchor="middle" dominantBaseline="central" style={{ fontFamily: FONT_FAMILY, fontWeight: 900, fontSize: 19, fill: col, paintOrder: "stroke", stroke: "#060b16", strokeWidth: 5 }}>{t}</text>;
           })}
         </g>
       </svg>
@@ -191,6 +207,8 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number }>
   const { delayRender, continueRender } = useDelayRender();
   const containerRef = useRef<HTMLDivElement>(null);
   const refs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const spRef = useRef<HTMLDivElement>(null);
+  const sp = f.sponsor ?? null;
   const layoutCache = useRef<Map<number, Map<string, { pl: Place | null; below?: boolean }>>>(new Map());
   const [map, setMap] = useState<MlMap | null>(null);
   const [handle] = useState(() => delayRender("Mapa pogody"));
@@ -225,6 +243,7 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number }>
   const jasnosc = progress(frame, 0, 12) * (1 - progress(frame, fr(nightStart) - 6, fr(nightStart) + 14));
   const imieninyO = progress(frame, 8, 24) * (1 - progress(frame, z ? fr(fz.zjawisko![0]) - 6 : fr(nightStart) - 8, z ? fr(fz.zjawisko![0]) + 8 : fr(nightStart) + 4));
   const windO = progress(frame, introFr - 4, introFr + 12);
+  const warnO = f.warnings.length ? progress(frame, fr(nightStart) + 30, fr(nightStart) + 46) : 0;
   const A: Cam = z ? { lng: z.lon, lat: z.lat + 0.03, zoom: 9.6, pitch: 56, bearing: -16 } : OVERVIEW;
   const START: Cam = { ...OVERVIEW, lng: OVERVIEW.lng - 0.15, zoom: OVERVIEW.zoom - 0.3, pitch: 30, bearing: -34 };
   const kfs: Keyframe[] = z
@@ -322,7 +341,9 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number }>
             const v = k.vis(q);
             items.push({ key: k.key, x: p.x, y: p.y, prio: k.prio, dol: k.dol, el, on: v > 0.01 && p.x > 0 && p.x < W && p.y > top && p.y < bottom });
           }
-          for (const [kk, pl] of layout(items, new Map(), top, bottom)) out.set(kk, { pl });
+          const obst: Rect[] = [];
+          if (sp) { const q = tr.locationToScreenPoint(new maplibregl.LngLat(sp.lon, sp.lat), map.terrain ?? undefined); obst.push({ x0: q.x - SPW / 2 - 6, y0: q.y - SPH - 16, x1: q.x + SPW / 2 + 6, y1: q.y + 8 }); }
+          for (const [kk, pl] of layout(items, new Map(), top, bottom, obst)) out.set(kk, { pl });
         }
         layoutCache.current.set(q, out);
         return out;
@@ -331,6 +352,10 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number }>
       const L0 = layoutAt(q0), L1 = layoutAt(q1);
       const a = (frame - q0) / STEP;
       const e = a * a * (3 - 2 * a);
+      if (sp && spRef.current) {
+        const q = map.project([sp.lon, sp.lat]);
+        spRef.current.style.transform = `translate(${q.x.toFixed(1)}px, ${q.y.toFixed(1)}px)`;
+      }
       for (const k of keys) {
         const el = refs.current.get(k.key);
         if (!el) continue;
@@ -359,7 +384,9 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number }>
       <div style={{ ...text, fontWeight: 700, fontSize: 32, textShadow: "0 2px 12px #000" }}>{dateTxt}</div>
     </div>
   );
-  const bottomRow: React.CSSProperties = { position: "absolute", left: 0, right: 0, bottom: SAFE.bottom + 70, display: "flex", justifyContent: "center", alignItems: "center", gap: 26, ...text, fontWeight: 800, fontSize: 32, textShadow: "0 2px 10px #000" };
+  // dolny pas: kompas z lewej, obok komunikaty (słońce/wiatr → zjawisko → ostrzeżenia IMGW)
+  const SLOT_L = SAFE.side + 126;
+  const bottomRow: React.CSSProperties = { position: "absolute", left: SLOT_L, right: SAFE.side, bottom: SAFE.bottom + 82, display: "flex", justifyContent: "flex-start", alignItems: "center", gap: 26, ...text, fontWeight: 800, fontSize: 32, textShadow: "0 2px 10px #000" };
   return (
     <AbsoluteFill style={{ background: "#060b16", overflow: "hidden" }}>
       <div ref={containerRef} style={{ position: "absolute", width: W, height: H }} />
@@ -399,13 +426,13 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number }>
       </div>
       {/* zjawisko – podpis */}
       {z ? (
-        <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom + 60, display: "flex", alignItems: "center", gap: 18, background: "rgba(6,12,26,0.82)", border: "1px solid rgba(255,255,255,0.14)", borderLeft: `8px solid ${COLORS.blue}`, borderRadius: 18, padding: "14px 22px", opacity: fx, transform: `translateY(${(1 - fx) * 24}px)` }}>
-          <WeatherIcon kind={z.kind} size={84} />
-          <div style={{ ...text, fontWeight: 900, fontSize: 44, lineHeight: 1.1 }}>{z.text}</div>
+        <div style={{ position: "absolute", left: SLOT_L, right: SAFE.side, bottom: SAFE.bottom + 52, display: "flex", alignItems: "center", gap: 14, background: "rgba(6,12,26,0.82)", border: "1px solid rgba(255,255,255,0.14)", borderLeft: `8px solid ${COLORS.blue}`, borderRadius: 18, padding: "14px 22px", opacity: fx, transform: `translateY(${(1 - fx) * 24}px)` }}>
+          <WeatherIcon kind={z.kind} size={70} />
+          <div style={{ ...text, fontWeight: 900, fontSize: 36, lineHeight: 1.1 }}>{z.text}</div>
         </div>
       ) : null}
       {/* dół: najpierw słońce, potem dochodzi wiatr */}
-      <div style={{ ...bottomRow, opacity: progress(frame, 10, 26) * (1 - fx) }}>
+      <div style={{ ...bottomRow, opacity: progress(frame, 10, 26) * (1 - fx) * (1 - warnO) }}>
         <span><span style={{ color: "#FFC23D" }}>☀</span> {f.sunrise}</span>
         <span style={{ color: "#FFB48A" }}>↓ {f.sunset}</span>
         <span style={{ display: "flex", alignItems: "center", gap: 8, opacity: windO * (1 - noc), width: windO * (1 - noc) > 0.01 ? undefined : 0, overflow: "hidden" }}>
@@ -413,6 +440,13 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number }>
           <WindArrow deg={info.windDeg} size={34} /> {info.windAvg} km/h
         </span>
       </div>
+      {f.warnings.length ? (
+        <div style={{ position: "absolute", left: SLOT_L, right: SAFE.side, bottom: SAFE.bottom + 52, display: "flex", flexDirection: "column", gap: 6, background: "rgba(6,12,26,0.82)", borderLeft: `8px solid ${COLORS.warn}`, borderRadius: 18, padding: "12px 20px", opacity: warnO, transform: `translateY(${(1 - warnO) * 20}px)` }}>
+          <div style={{ ...text, fontWeight: 800, fontSize: 20, letterSpacing: 3, color: COLORS.warn }}>OSTRZEŻENIE IMGW</div>
+          {f.warnings.slice(0, 2).map((w) => <div key={w.event} style={{ ...text, fontWeight: 800, fontSize: 30, lineHeight: 1.1 }}>{w.event}</div>)}
+        </div>
+      ) : null}
+      {sp ? <SponsorPin ref={spRef} s={sp} o={progress(frame, 14, 30)} /> : null}
       <div style={{ position: "absolute", left: 0, right: 0, bottom: 28, textAlign: "center", ...text, fontWeight: 500, fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
         Dane: MET Norway (CC BY 4.0) · mapa © OpenStreetMap contributors, AWS Terrain Tiles, GUGiK
       </div>

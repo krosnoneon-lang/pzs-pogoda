@@ -252,7 +252,7 @@ const kmh = (n: number) => {
 /** Wersja 2: lektor w trzech częściach + informacje dla mapy (co pokazać i kiedy). */
 function buildV2(f: Omit<Forecast, "voiceoverText">): { lektor: Lektor; mapa: MapaInfo } {
   const d = new Date(`${f.date}T12:00:00Z`);
-  const imiona = f.imieniny?.length ? ` Imieniny obchodzą ${imionaSay(f.imieniny)}.` : "";
+  const imiona = (f.imieniny?.length ? ` Imieniny obchodzą ${imionaSay(f.imieniny)}.` : "") + (f.sponsor ? ` Sponsorem pogody jest ${f.sponsor.lektor}.` : "");
   const intro = [
     `Dzień dobry, Podkarpacie! Dzisiaj ${DAYS_PL[d.getUTCDay()]}, ${dayGen(d.getUTCDate())} ${MONTH_GEN[d.getUTCMonth()]}.${imiona}`,
     `Słońce wstaje o ${timeGen(f.sunrise)}, a zachodzi o ${timeGen(f.sunset)}.`,
@@ -395,6 +395,8 @@ async function main() {
     ? mock(mockScenario)
     : { cities: await fetchCities(), warnings: await fetchWarnings(), extra: await fetchCities(EXTRA_CITIES).catch(() => [] as CityForecast[]) };
   const a = astro();
+  const sp = path.join(__dirname, "..", "public", "data", "sponsor.json");
+  const sponsor = fs.existsSync(sp) ? JSON.parse(fs.readFileSync(sp, "utf8")) : null;
   const base = {
     date: DATE,
     cities,
@@ -404,7 +406,8 @@ async function main() {
     sunset: a.sunset,
     fullMoon: args.includes("--pelnia") ? true : a.fullMoon,
     warnings,
-    endCard: arg("--plansza") ?? pickEndCard(),
+    sponsor,
+    endCard: arg("--plansza") ?? (sponsor ? "sponsor" : pickEndCard()),
     dayNote: pickDay(DATE),
     maxim: pickMaxim(DATE),
     imieniny: pickImieniny(DATE),

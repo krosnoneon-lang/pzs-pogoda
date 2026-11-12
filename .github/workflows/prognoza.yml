@@ -78,6 +78,15 @@ jobs:
         if: steps.guard.outputs.run == 'true'
         run: npm ci && npx remotion browser ensure
 
+      - name: Sponsor pogody (arkusz Google / harmonogram w repo)
+        if: steps.guard.outputs.run == 'true'
+        env:
+          SPONSOR_SHEET_ID: ${{ vars.SPONSOR_SHEET_ID }}
+        run: |
+          EXTRA=""
+          if [ -n "${{ github.event.inputs.date }}" ]; then EXTRA="--date ${{ github.event.inputs.date }}"; fi
+          npx tsx scripts/sponsor.ts $EXTRA
+
       - name: Pobranie prognozy
         if: steps.guard.outputs.run == 'true'
         run: |

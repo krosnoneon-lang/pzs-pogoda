@@ -39,7 +39,10 @@ const text: React.CSSProperties = { fontFamily: FONT_FAMILY, color: COLORS.white
 export const PrognozaMapa: React.FC<Forecast> = (f) => {
   const frame = useCurrentFrame();
   const bg = BACKGROUNDS[f.background];
-  const card = ALL_CARDS().find((c) => c.id === f.endCard) ?? PROJECT_CARDS[0];
+  const card =
+    f.endCard === "sponsor" && f.sponsor
+      ? { id: "sponsor", kicker: "Sponsor pogody", title: f.sponsor.nazwa, subtitle: f.sponsor.haslo ?? f.sponsor.podpis, logo: f.sponsor.logo, accent: "blue" as const }
+      : ALL_CARDS().find((c) => c.id === f.endCard) ?? PROJECT_CARDS[0];
   const T = timeline2(f);
   const fadeIn = (from: number) => interpolate(frame, [from, from + XF], [0, 1], clamp);
   const s = f.lektorSec ?? {};

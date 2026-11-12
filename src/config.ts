@@ -34,6 +34,35 @@ export const CITIES = [
   { name: "Ustrzyki Górne", lat: 49.1052, lon: 22.6492, region: "bieszczady", loc: "w Ustrzykach Górnych", dol: true },
 ] as const;
 
+/** Miejscowości pokazywane TYLKO na zbliżeniu mapy (stolice powiatów + miejsca turystyczne). Współrzędne z OSM. */
+export const EXTRA_CITIES = [
+  { name: "Lesko", lat: 49.4689, lon: 22.3304, region: "bieszczady" },
+  { name: "Wetlina", lat: 49.1552, lon: 22.469, region: "bieszczady" },
+  { name: "Cisna", lat: 49.2132, lon: 22.3283, region: "bieszczady" },
+  { name: "Baligród", lat: 49.3368, lon: 22.2866, region: "bieszczady" },
+  { name: "Komańcza", lat: 49.3361, lon: 22.0698, region: "bieszczady" },
+  { name: "Solina", lat: 49.3997, lon: 22.4499, region: "bieszczady" },
+  { name: "Brzozów", lat: 49.695, lon: 22.0197, region: "pogorze" },
+  { name: "Iwonicz-Zdrój", lat: 49.5697, lon: 21.7932, region: "pogorze" },
+  { name: "Rymanów-Zdrój", lat: 49.5498, lon: 21.8513, region: "pogorze" },
+  { name: "Zagórz", lat: 49.5099, lon: 22.2633, region: "pogorze" },
+  { name: "Krempna", lat: 49.5103, lon: 21.5031, region: "pogorze" },
+  { name: "Strzyżów", lat: 49.8702, lon: 21.7856, region: "centrum" },
+  { name: "Ropczyce", lat: 50.0529, lon: 21.6116, region: "centrum" },
+  { name: "Kolbuszowa", lat: 50.2433, lon: 21.7755, region: "centrum" },
+  { name: "Głogów Młp.", lat: 50.1512, lon: 21.9628, region: "centrum" },
+  { name: "Dynów", lat: 49.8135, lon: 22.2338, region: "centrum" },
+  { name: "Nisko", lat: 50.5199, lon: 22.1399, region: "polnoc" },
+  { name: "Nowa Dęba", lat: 50.4135, lon: 21.7541, region: "polnoc" },
+  { name: "Rudnik n. Sanem", lat: 50.4448, lon: 22.244, region: "polnoc" },
+  { name: "Przeworsk", lat: 50.0602, lon: 22.4924, region: "wschod" },
+  { name: "Radymno", lat: 49.9517, lon: 22.8183, region: "wschod" },
+  { name: "Krasiczyn", lat: 49.7762, lon: 22.6522, region: "wschod" },
+  { name: "Bircza", lat: 49.6912, lon: 22.4804, region: "wschod" },
+  { name: "Arłamów", lat: 49.5781, lon: 22.6674, region: "wschod" },
+  { name: "Horyniec-Zdrój", lat: 50.191, lon: 23.3626, region: "wschod" },
+] as const;
+
 export const REGION_LOC: Record<string, string> = {
   polnoc: "na północy regionu",
   centrum: "w centrum regionu",

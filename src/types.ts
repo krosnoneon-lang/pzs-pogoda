@@ -41,7 +41,7 @@ export type MapaInfo = {
 };
 
 /** Części tekstu lektora: plansza powitalna, mapa, myśl dnia (osobne nagrania = dokładne cięcia) */
-export type Lektor = { intro: string; mapa: string; mysl: string };
+export type Lektor = { intro: string; mapa: string; mysl?: string };
 
 export type Warning = {
   /** np. „Oblodzenie”, „Burze z gradem” */
@@ -55,6 +55,8 @@ export type Forecast = {
   /** ISO data dnia prognozy (czas lokalny), np. 2026-11-07 */
   date: string;
   cities: CityForecast[];
+  /** miejscowości widoczne tylko na zbliżeniu mapy */
+  extra?: CityForecast[];
   /** tło całego ekranu */
   background: WeatherKind;
   sunrise: string; // "06:41"

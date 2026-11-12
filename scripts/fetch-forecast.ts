@@ -13,7 +13,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as Astronomy from "astronomy-engine";
-import { ACTIVE_AD, DEFAULT_CARD, ADS, AD_SCHEDULE, BACKGROUND_MODE, CITIES, PROJECT_CARDS, REGION_LOC, SUN_CITY } from "../src/config";
+import { ACTIVE_AD, DEFAULT_CARD, ADS, AD_SCHEDULE, BACKGROUND_MODE, CITIES, EXTRA_CITIES, PROJECT_CARDS, REGION_LOC, SUN_CITY } from "../src/config";
 import { pickDay, pickMaxim, pickCta, pickImieniny, imionaSay } from "../src/dzien";
 import type { CityForecast, Forecast, Lektor, MapaInfo, Warning, WeatherKind } from "../src/types";
 
@@ -144,9 +144,9 @@ export function summarize(name: string, hours: Hour[], date: string): CityForeca
   };
 }
 
-async function fetchCities(): Promise<CityForecast[]> {
+async function fetchCities(list: readonly { name: string; lat: number; lon: number }[] = CITIES): Promise<CityForecast[]> {
   const out: CityForecast[] = [];
-  for (const c of CITIES) {
+  for (const c of list) {
     out.push(summarize(c.name, await fetchMet(c.lat, c.lon), DATE));
     await new Promise((r) => setTimeout(r, 400)); // spokojnie dla serwera MET
   }
@@ -321,7 +321,8 @@ function buildV2(f: Omit<Forecast, "voiceoverText">): { lektor: Lektor; mapa: Ma
   const l1 = segs[1].length / total;
   const mapaText = zjawisko ? `${segs[0]} ${opady} ${segs[2]}` : `${segs[0]} ${opady} ${segs[2]}`;
   return {
-    lektor: { intro, mapa: mapaText, mysl: `Myśl na dziś: ${f.maxim} Miłego dnia!` + (ADS.find((a) => a.id === f.endCard) ? ` Prognozę przygotował dla was ${ADS.find((a) => a.id === f.endCard)!.title}.` : "") },
+    // myśl dnia wyłączona – w to miejsce wejdzie kiedyś reklama
+    lektor: { intro, mapa: mapaText },
     mapa: {
       zjawisko,
       windDeg,
@@ -336,7 +337,7 @@ function buildV2(f: Omit<Forecast, "voiceoverText">): { lektor: Lektor; mapa: Ma
 /** Tekst dla lektora (wersja 1, cały ciągiem) – zostaje dla zgodności */
 function voiceText(f: Omit<Forecast, "voiceoverText">): string {
   const v = buildV2(f);
-  return `${v.lektor.intro} ${v.lektor.mapa} ${v.lektor.mysl}`;
+  return `${v.lektor.intro} ${v.lektor.mapa}`;
 }
 
 function nextDay(d: string) {
@@ -347,7 +348,7 @@ function nextDay(d: string) {
 
 /* ---------- dane testowe (17 miejscowości; wiersz = region) ---------- */
 type Row = [WeatherKind, number, number, number, number, number, number]; // kind, tDay, tNight, pop, wind, gust, windDeg
-function mock(scenario: string): { cities: CityForecast[]; warnings: Warning[] } {
+function mock(scenario: string): { cities: CityForecast[]; warnings: Warning[]; extra: CityForecast[] } {
   const R: Record<string, Record<string, Row>> = {
     listopad: {
       polnoc: ["pochmurno", 7, 1, 20, 18, 34, 270], centrum: ["czesciowe", 8, 1, 15, 20, 38, 265], wschod: ["slonce", 9, 2, 5, 16, 30, 260],
@@ -380,16 +381,24 @@ function mock(scenario: string): { cities: CityForecast[]; warnings: Warning[] }
     : scenario === "lato" ? [{ event: "Burze z gradem", level: 2, area: "Krosno, Sanok, Ustrzyki Dolne" }]
     : scenario === "mgla" ? [{ event: "Gęsta mgła", level: 1, area: "część regionu" }]
     : [];
-  return { cities, warnings };
+  const extra = EXTRA_CITIES.map((c, i) => {
+    const [kind, tDay, tNight, pop, wind, gust, deg] = S[c.region];
+    const j = (i % 3) - 1;
+    return { name: c.name, kind, tDay: tDay + j, tNight: tNight + (i % 2 ? -1 : 0), pop, wind: wind + j * 2, gust, windDir: DIRS8[Math.round(deg / 45) % 8], windDeg: deg + j * 8 };
+  });
+  return { cities, warnings, extra };
 }
 
 async function main() {
   const mockScenario = args.includes("--mock") ? arg("--mock") ?? "listopad" : null;
-  const { cities, warnings } = mockScenario ? mock(mockScenario) : { cities: await fetchCities(), warnings: await fetchWarnings() };
+  const { cities, warnings, extra } = mockScenario
+    ? mock(mockScenario)
+    : { cities: await fetchCities(), warnings: await fetchWarnings(), extra: await fetchCities(EXTRA_CITIES).catch(() => [] as CityForecast[]) };
   const a = astro();
   const base = {
     date: DATE,
     cities,
+    extra,
     background: pickBackground(cities),
     sunrise: a.sunrise,
     sunset: a.sunset,

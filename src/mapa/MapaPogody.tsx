@@ -1,6 +1,7 @@
 /**
- * Scena mapy pogody (wersja 2): 17 miejscowości na mapie 3D Podkarpacia.
- * DZIEŃ (temperatury + strzałki wiatru) → zbliżenie na opady/mgłę → NOC.
+ * Scena mapy pogody (wersja 2): od pierwszej sekundy mapa 3D Podkarpacia.
+ * POWITANIE (kamera powoli krąży, imieniny + słońce) → DZIEŃ → zbliżenie na opady/mgłę (dochodzą mniejsze miejscowości) → NOC.
+ * Chmurki rozsuwają się, żeby nie nachodziły na siebie; najwyższa/najniższa temperatura zawsze na wierzchu.
  * Czas faz przychodzi z forecast.json (mapa.fazy) – dopasowany do zdań lektora.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -10,7 +11,7 @@ import type { Map as MlMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { buildStyle } from "./style";
 import { camAt, progress, type Cam, type Keyframe } from "./camera";
-import { CITIES, COLORS, FONT_FAMILY, LOGO, SAFE } from "../config";
+import { CITIES, COLORS, EXTRA_CITIES, FONT_FAMILY, LOGO, SAFE } from "../config";
 import type { Forecast, WeatherKind } from "../types";
 import { WeatherIcon, MoonIcon } from "../icons";
 
@@ -34,14 +35,14 @@ const WindArrow: React.FC<{ deg: number; size: number; color?: string }> = ({ de
 );
 
 /* ---------- karta miasta ---------- */
-const Card = React.forwardRef<HTMLDivElement, { name: string; kind: WeatherKind | "noc"; t: number; wind?: { deg: number; v: number }; hi?: "max" | "min"; dol?: boolean }>(
-  ({ name, kind, t, wind, hi, dol }, ref) => {
-    const col = hi === "max" ? "#FF9F43" : hi === "min" ? COLORS.blue : "rgba(255,255,255,0.18)";
-    const k = hi ? 1.25 : 1;
+const Card = React.forwardRef<HTMLDivElement, { name: string; kind: WeatherKind | "noc"; t: number; wind?: { deg: number; v: number }; hi?: "max" | "min"; dol?: boolean; small?: boolean }>(
+  ({ name, kind, t, wind, hi, dol, small }, ref) => {
+    const col = hi === "max" ? "#FF9F43" : hi === "min" ? COLORS.blue : small ? "rgba(140,200,255,0.35)" : "rgba(255,255,255,0.18)";
+    const k = hi ? 1.25 : small ? 0.85 : 1;
     return (
       <div ref={ref} style={{ position: "absolute", left: 0, top: 0, opacity: 0, willChange: "transform, opacity" }}>
-        <div style={{ position: "absolute", transform: dol ? "translate(-50%, 0)" : "translate(-50%, -100%)", display: "flex", flexDirection: dol ? "column-reverse" : "column", alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(6,12,26,0.84)", border: `${hi ? 3 : 1.5}px solid ${col}`, borderRadius: 16 * k, padding: `${4 * k}px ${12 * k}px ${4 * k}px ${4 * k}px`, boxShadow: hi ? `0 0 26px ${col}` : "0 4px 14px rgba(0,0,0,0.5)" }}>
+        <div data-in="1" style={{ position: "absolute", transform: dol ? "translate(-50%, 0)" : "translate(-50%, -100%)", display: "flex", flexDirection: dol ? "column-reverse" : "column", alignItems: "center" }}>
+          <div data-bub="1" style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(6,12,26,0.84)", border: `${hi ? 3 : 1.5}px solid ${col}`, borderRadius: 16 * k, padding: `${4 * k}px ${12 * k}px ${4 * k}px ${4 * k}px`, boxShadow: hi ? `0 0 26px ${col}` : "0 4px 14px rgba(0,0,0,0.5)" }}>
             {kind === "noc" ? <div style={{ width: 52 * k, display: "flex", justifyContent: "center" }}><MoonIcon size={40 * k} /></div> : <WeatherIcon kind={kind} size={52 * k} />}
             <div style={{ lineHeight: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -57,7 +58,7 @@ const Card = React.forwardRef<HTMLDivElement, { name: string; kind: WeatherKind 
             </div>
           </div>
           <div style={{ width: 2, height: 12, background: "rgba(255,255,255,0.6)" }} />
-          <div style={{ width: 9, height: 9, borderRadius: "50%", background: "#fff", transform: dol ? "translateY(-50%)" : "translateY(50%)" }} />
+          <div data-dot="1" style={{ width: 9, height: 9, borderRadius: "50%", background: "#fff", transform: dol ? "translateY(-50%)" : "translateY(50%)" }} />
         </div>
       </div>
     );
@@ -113,11 +114,84 @@ const Zjawisko: React.FC<{ kind: WeatherKind; frame: number; opacity: number }> 
   );
 };
 
-export const MapaPogody: React.FC<{ f: Forecast; dur: number }> = ({ f, dur }) => {
+/* ---------- rozsuwanie chmurek: każda dostaje miejsce bez nakładania; ważniejsze pierwsze ---------- */
+type Rect = { x0: number; y0: number; x1: number; y1: number };
+type Place = { below: boolean; dx: number };
+const hit = (a: Rect, b: Rect) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+const STEM = 17;
+const rectOf = (x: number, y: number, w: number, h: number, pl: Place): Rect => {
+  const x0 = x - w / 2 + pl.dx;
+  return pl.below ? { x0, y0: y, x1: x0 + w, y1: y + h + STEM } : { x0, y0: y - h - STEM, x1: x0 + w, y1: y };
+};
+type Item = { key: string; x: number; y: number; prio: number; dol: boolean; el: HTMLDivElement; on: boolean };
+const layout = (items: Item[], last: Map<string, Place>, top: number, bottom: number): Map<string, Place | null> => {
+  const res = new Map<string, Place | null>();
+  const placed: Rect[] = [];
+  // kropki miejscowości też są przeszkodą (chmurka nie zasłania innej miejscowości)
+  const dots: Rect[] = items.filter((i) => i.on).map((i) => ({ x0: i.x - 8, y0: i.y - 8, x1: i.x + 8, y1: i.y + 8 }));
+  for (const it of [...items].sort((a, b) => b.prio - a.prio)) {
+    if (!it.on) { res.set(it.key, null); continue; }
+    const bub = it.el.querySelector("[data-bub]") as HTMLElement;
+    const w = bub.offsetWidth, h = bub.offsetHeight;
+    const prev = last.get(it.key);
+    const s = Math.round(w * 0.38);
+    const base: Place[] = [
+      { below: it.dol, dx: 0 }, { below: !it.dol, dx: 0 },
+      { below: it.dol, dx: -s }, { below: it.dol, dx: s }, { below: !it.dol, dx: -s }, { below: !it.dol, dx: s },
+    ];
+    const cands = prev ? [prev, ...base] : base;
+    let ok: Place | null = null;
+    for (const pl of cands) {
+      const r = rectOf(it.x, it.y, w, h, pl);
+      if (r.y0 < top || r.y1 > bottom || r.x0 < 8 || r.x1 > W - 8) continue;
+      if (placed.some((q) => hit(q, r))) continue;
+      if (dots.some((d) => hit(d, r) && !(d.x0 === it.x - 8 && d.y0 === it.y - 8))) continue;
+      ok = pl; break;
+    }
+    if (!ok && it.prio >= 100) ok = cands[0]; // max / min zawsze widoczne (na wierzchu)
+    if (ok) placed.push(rectOf(it.x, it.y, w, h, ok));
+    res.set(it.key, ok);
+  }
+  return res;
+};
+const applyPlace = (el: HTMLDivElement, pl: Place) => {
+  const inner = el.querySelector("[data-in]") as HTMLElement;
+  const bub = el.querySelector("[data-bub]") as HTMLElement;
+  const dot = el.querySelector("[data-dot]") as HTMLElement;
+  inner.style.transform = pl.below ? "translate(-50%, 0)" : "translate(-50%, -100%)";
+  inner.style.flexDirection = pl.below ? "column-reverse" : "column";
+  dot.style.transform = pl.below ? "translateY(-50%)" : "translateY(50%)";
+  bub.style.transform = `translateX(${pl.dx}px)`;
+};
+
+/* ---------- kompas: obraca się razem z mapą ---------- */
+const Kompas: React.FC<{ bearing: number; o: number }> = ({ bearing, o }) => {
+  const R = 58;
+  const lab = [["N", 0, "#FF5A5A"], ["E", 90, COLORS.white], ["S", 180, COLORS.white], ["W", 270, COLORS.white]] as const;
+  return (
+    <div style={{ position: "absolute", top: SAFE.top - 20, right: SAFE.side - 10, width: 2 * R + 40, height: 2 * R + 40, opacity: o }}>
+      <svg width={2 * R + 40} height={2 * R + 40} viewBox={`${-R - 20} ${-R - 20} ${2 * R + 40} ${2 * R + 40}`}>
+        <circle r={R} fill="rgba(6,12,26,0.72)" stroke="rgba(255,255,255,0.28)" strokeWidth={2} />
+        <g transform={`rotate(${-bearing})`}>
+          {Array.from({ length: 16 }, (_, i) => <line key={i} x1={0} y1={-R + 4} x2={0} y2={-R + (i % 4 ? 9 : 14)} stroke="rgba(255,255,255,0.5)" strokeWidth={2} transform={`rotate(${i * 22.5})`} />)}
+          <path d={`M0 ${-R + 18} L9 0 L0 6 L-9 0 Z`} fill="#FF5A5A" />
+          <path d={`M0 ${R - 18} L9 0 L0 -6 L-9 0 Z`} fill="rgba(255,255,255,0.75)" />
+          {lab.map(([t, deg, col]) => {
+            const r = ((deg as number) * Math.PI) / 180;
+            return <text key={t} x={Math.sin(r) * (R + 2)} y={-Math.cos(r) * (R + 2)} transform={`rotate(${bearing} ${Math.sin(r) * (R + 2)} ${-Math.cos(r) * (R + 2)})`} textAnchor="middle" dominantBaseline="central" style={{ fontFamily: FONT_FAMILY, fontWeight: 900, fontSize: 22, fill: col, paintOrder: "stroke", stroke: "#060b16", strokeWidth: 5 }}>{t}</text>;
+          })}
+        </g>
+      </svg>
+    </div>
+  );
+};
+
+export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number }> = ({ f, dur, introFr }) => {
   const frame = useCurrentFrame();
   const { delayRender, continueRender } = useDelayRender();
   const containerRef = useRef<HTMLDivElement>(null);
   const refs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const layoutCache = useRef<Map<number, Map<string, { pl: Place | null; below?: boolean }>>>(new Map());
   const [map, setMap] = useState<MlMap | null>(null);
   const [handle] = useState(() => delayRender("Mapa pogody"));
   const info = f.mapa!;
@@ -128,33 +202,48 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number }> = ({ f, dur }) =
     () => f.cities.map((c) => ({ ...c, cfg: CITIES.find((x) => x.name === c.name) })).filter((c) => c.cfg),
     [f.cities],
   );
+  const extras = useMemo(
+    () => (f.extra ?? []).map((c) => ({ ...c, cfg: EXTRA_CITIES.find((x) => x.name === c.name) })).filter((c) => c.cfg),
+    [f.extra],
+  );
   const maxD = Math.max(...cities.map((c) => c.tDay));
   const minN = Math.min(...cities.map((c) => c.tNight));
 
-  /* ---------- oś czasu sceny ---------- */
-  const fr = (x: number) => x * dur;
-  const dayEnd = z ? fz.zjawisko![0] : fz.noc[0];
+  /* ---------- oś czasu sceny ----------
+   * 0..introFr: powitanie (mapa już widoczna, kamera krąży, imieniny + słońce)
+   * introFr..dur: część pogodowa; fazy (ułamki) liczone względem tej części */
+  const span = Math.max(1, dur - introFr);
+  const fr = (x: number) => introFr + x * span;
+  const T = (x: number) => fr(x) / Math.max(1, dur - 1); // ułamek całej sceny dla kamery
   const nightStart = fz.noc[0];
-  const dzien = progress(frame, fr(0.02), fr(0.08)) * (1 - progress(frame, fr(dayEnd) - 8, fr(dayEnd) + 4));
-  const noc = progress(frame, fr(nightStart) + 4, fr(nightStart) + 20);
-  const fx = z ? progress(frame, fr(fz.zjawisko![0]) + 10, fr(fz.zjawisko![0]) + 26) * (1 - progress(frame, fr(fz.zjawisko![1]) - 14, fr(fz.zjawisko![1]))) : 0;
-  const jasnosc = progress(frame, 0, fr(0.08)) * (1 - progress(frame, fr(nightStart) - 6, fr(nightStart) + 14));
-  const A: Cam = z ? { lng: z.lon, lat: z.lat + 0.03, zoom: 9.85, pitch: 58, bearing: -16 } : OVERVIEW;
+  const phases = (q: number) => ({
+    dzien: progress(q, 6, 20) * (1 - progress(q, fr(nightStart) - 8, fr(nightStart) + 4)),
+    noc: progress(q, fr(nightStart) + 4, fr(nightStart) + 20),
+    fx: z ? progress(q, fr(fz.zjawisko![0]) + 10, fr(fz.zjawisko![0]) + 26) * (1 - progress(q, fr(fz.zjawisko![1]) - 14, fr(fz.zjawisko![1]))) : 0,
+  });
+  const { dzien, noc, fx } = phases(frame);
+  const jasnosc = progress(frame, 0, 12) * (1 - progress(frame, fr(nightStart) - 6, fr(nightStart) + 14));
+  const imieninyO = progress(frame, 8, 24) * (1 - progress(frame, z ? fr(fz.zjawisko![0]) - 6 : fr(nightStart) - 8, z ? fr(fz.zjawisko![0]) + 8 : fr(nightStart) + 4));
+  const windO = progress(frame, introFr - 4, introFr + 12);
+  const A: Cam = z ? { lng: z.lon, lat: z.lat + 0.03, zoom: 9.6, pitch: 56, bearing: -16 } : OVERVIEW;
+  const START: Cam = { ...OVERVIEW, lng: OVERVIEW.lng - 0.15, zoom: OVERVIEW.zoom - 0.3, pitch: 30, bearing: -34 };
   const kfs: Keyframe[] = z
     ? [
-        { t: 0, cam: { ...OVERVIEW, zoom: OVERVIEW.zoom - 0.35, pitch: 28 } },
-        { t: fz.dzien[1] * 0.85, cam: OVERVIEW },
-        { t: fz.zjawisko![0] + 0.06, cam: A },
-        { t: fz.zjawisko![1] - 0.02, cam: { ...A, bearing: A.bearing + 8, zoom: A.zoom + 0.1 } },
-        { t: Math.min(0.99, fz.noc[0] + 0.07), cam: OVERVIEW },
+        { t: 0, cam: START },
+        { t: T(0) , cam: OVERVIEW },
+        { t: T(fz.dzien[1] * 0.85), cam: { ...OVERVIEW, bearing: OVERVIEW.bearing + 4 } },
+        { t: T(fz.zjawisko![0] + 0.06), cam: A },
+        { t: T(fz.zjawisko![1] - 0.02), cam: { ...A, bearing: A.bearing + 8, zoom: A.zoom + 0.1 } },
+        { t: Math.min(0.99, T(fz.noc[0] + 0.07)), cam: OVERVIEW },
         { t: 1, cam: { ...OVERVIEW, bearing: OVERVIEW.bearing - 4, zoom: OVERVIEW.zoom + 0.06 } },
       ]
     : [
-        { t: 0, cam: { ...OVERVIEW, zoom: OVERVIEW.zoom - 0.35, pitch: 28 } },
-        { t: 0.15, cam: OVERVIEW },
+        { t: 0, cam: START },
+        { t: T(0), cam: OVERVIEW },
         { t: 1, cam: { ...OVERVIEW, bearing: OVERVIEW.bearing - 6, zoom: OVERVIEW.zoom + 0.08 } },
       ];
-  const cam = camAt(kfs, frame / Math.max(1, dur - 1));
+  const camOf = (q: number) => camAt(kfs, Math.min(1, Math.max(0, q / Math.max(1, dur - 1))));
+  const cam = camOf(frame);
 
   /* ---------- mapa ---------- */
   useEffect(() => {
@@ -199,19 +288,63 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number }> = ({ f, dur }) =
       setTimeout(go, 20000);
     };
     whenReady(() => {
-      cities.forEach((c, i) => {
-        const p = map.project([c.cfg!.lon, c.cfg!.lat]);
+      /* Płynność: układ chmurek liczony deterministycznie co STEP klatek (dla kamery z tej klatki),
+       * a między nimi chmurka przenika się (fade) i przesuwa – nic nie „wyskakuje” nagle,
+       * a wynik nie zależy od kolejności renderowania klatek. */
+      const STEP = 12;
+      const top = SAFE.top + 250, bottom = H - SAFE.bottom - 150;
+      const keys: { key: string; lon: number; lat: number; prio: number; dol: boolean; vis: (q: number) => number }[] = [];
+      for (const night of [false, true]) {
+        cities.forEach((c, i) => {
+          const hi = night ? c.tNight === minN : c.tDay === maxD;
+          keys.push({
+            key: `${night ? "n" : "d"}${i}`, lon: c.cfg!.lon, lat: c.cfg!.lat, prio: hi ? 100 : 50 - i * 0.1, dol: "dol" in c.cfg! && !!c.cfg!.dol,
+            vis: (q) => { const ph = phases(q); return Math.min(1, Math.max(0, (night ? ph.noc : ph.dzien) * cities.length - i * 0.55)); },
+          });
+        });
+      }
+      extras.forEach((c, i) => keys.push({ key: `x${i}`, lon: c.cfg!.lon, lat: c.cfg!.lat, prio: 10 - i * 0.1, dol: false, vis: (q) => phases(q).fx }));
+      const tr0 = (map as unknown as { transform: { clone(): any } }).transform;
+      const layoutAt = (q: number) => {
+        const hitC = layoutCache.current.get(q);
+        if (hitC) return hitC;
+        const c = camOf(q);
+        const tr = tr0.clone();
+        tr.setCenter(new maplibregl.LngLat(c.lng, c.lat)); tr.setZoom(c.zoom); tr.setPitch(c.pitch); tr.setBearing(c.bearing);
+        const out = new Map<string, { pl: Place | null }>();
         for (const night of [false, true]) {
-          const el = refs.current.get(`${night ? "n" : "d"}${i}`);
-          if (!el) continue;
-          const phase = night ? noc : dzien;
-          const stag = Math.min(1, Math.max(0, phase * cities.length - i * 0.55));
-          // strefy Stories: góra (logo) i dół (pole odpowiedzi) zostają puste
-          const safe = Math.min(1, Math.max(0, (p.y - (SAFE.top + 120)) / 40), Math.max(0, (H - SAFE.bottom - 60 - p.y) / 40));
-          el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
-          el.style.opacity = (stag * (1 - fx) * safe).toFixed(3);
+          const items: Item[] = [];
+          for (const k of keys) {
+            if ((k.key[0] === "n") !== night) continue;
+            const el = refs.current.get(k.key);
+            if (!el) continue;
+            const p = tr.locationToScreenPoint(new maplibregl.LngLat(k.lon, k.lat), map.terrain ?? undefined);
+            const v = k.vis(q);
+            items.push({ key: k.key, x: p.x, y: p.y, prio: k.prio, dol: k.dol, el, on: v > 0.01 && p.x > 0 && p.x < W && p.y > top && p.y < bottom });
+          }
+          for (const [kk, pl] of layout(items, new Map(), top, bottom)) out.set(kk, { pl });
         }
-      });
+        layoutCache.current.set(q, out);
+        return out;
+      };
+      const q0 = Math.floor(frame / STEP) * STEP, q1 = q0 + STEP;
+      const L0 = layoutAt(q0), L1 = layoutAt(q1);
+      const a = (frame - q0) / STEP;
+      const e = a * a * (3 - 2 * a);
+      for (const k of keys) {
+        const el = refs.current.get(k.key);
+        if (!el) continue;
+        const p = map.project([k.lon, k.lat]);
+        el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
+        const p0 = L0.get(k.key)?.pl ?? null, p1 = L1.get(k.key)?.pl ?? null;
+        const shown = (p0 ? 1 - e : 0) + (p1 ? e : 0);
+        let pl: Place | null = p0 && p1 ? (p0.below === p1.below ? { below: p0.below, dx: p0.dx + (p1.dx - p0.dx) * e } : e < 0.5 ? p0 : p1) : p0 ?? p1;
+        // przy zmianie strony (góra/dół) chmurka gaśnie i zapala się po drugiej stronie
+        const flip = p0 && p1 && p0.below !== p1.below ? Math.abs(1 - 2 * e) : 1;
+        if (pl) applyPlace(el, pl);
+        el.style.zIndex = k.prio >= 100 ? "10" : "1";
+        el.style.opacity = pl ? (k.vis(frame) * shown * flip).toFixed(3) : "0";
+      }
       continueRender(h);
     });
     map.triggerRepaint();
@@ -223,10 +356,10 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number }> = ({ f, dur }) =
   const pill = (t: string, bg: string, fg: string, o: number) => (
     <div style={{ position: "absolute", top: SAFE.top + 135, left: 0, right: 0, display: "flex", justifyContent: "center", alignItems: "center", gap: 16, opacity: o, transform: `translateY(${(1 - o) * -14}px)` }}>
       <div style={{ ...text, fontWeight: 900, fontSize: 40, letterSpacing: 3, background: bg, color: fg, padding: "4px 22px", borderRadius: 14 }}>{t}</div>
-      <div style={{ ...text, fontWeight: 700, fontSize: 30, textShadow: "0 2px 12px #000" }}>{dateTxt}</div>
+      <div style={{ ...text, fontWeight: 700, fontSize: 32, textShadow: "0 2px 12px #000" }}>{dateTxt}</div>
     </div>
   );
-
+  const bottomRow: React.CSSProperties = { position: "absolute", left: 0, right: 0, bottom: SAFE.bottom + 70, display: "flex", justifyContent: "center", alignItems: "center", gap: 26, ...text, fontWeight: 800, fontSize: 32, textShadow: "0 2px 10px #000" };
   return (
     <AbsoluteFill style={{ background: "#060b16", overflow: "hidden" }}>
       <div ref={containerRef} style={{ position: "absolute", width: W, height: H }} />
@@ -244,31 +377,43 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number }> = ({ f, dur }) =
             <Card ref={(el) => { if (el) refs.current.set(`n${i}`, el); }} name={c.name} kind="noc" t={c.tNight} hi={c.tNight === minN ? "min" : undefined} dol={"dol" in c.cfg! && c.cfg!.dol} />
           </React.Fragment>
         ))}
+        {extras.map((c, i) => (
+          <Card key={c.name} small ref={(el) => { if (el) refs.current.set(`x${i}`, el); }} name={c.name} kind={c.kind} t={c.tDay} />
+        ))}
       </AbsoluteFill>
       {/* nagłówek */}
       <div style={{ position: "absolute", top: SAFE.top - 30, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
         <Img src={staticFile(LOGO.file)} style={{ width: LOGO.width * 0.62, objectFit: "contain", filter: "drop-shadow(0 4px 18px rgba(0,0,0,0.6))", opacity: interpolate(frame, [0, 10], [0, 1], clamp) }} />
       </div>
-      {pill("DZIEŃ", "#FFD23F", "#1A1200", dzien * (1 - fx))}
+      <Kompas bearing={cam.bearing} o={progress(frame, 4, 18)} />
+      {pill("DZIEŃ", "#FFD23F", "#1A1200", dzien)}
       {pill("NOC", "#2C3F8F", "#E8EEFF", noc)}
+      {/* imieniny (i święto) pod datą – znikają, gdy mapa zaczyna się zbliżać */}
+      <div style={{ position: "absolute", top: SAFE.top + 200, left: SAFE.side, right: SAFE.side, textAlign: "center", opacity: imieninyO, transform: `translateY(${(1 - imieninyO) * -10}px)` }}>
+        {f.dayNote ? <div style={{ ...text, fontWeight: 900, fontSize: 36, color: COLORS.magenta, textShadow: "0 2px 12px #000" }}>{f.dayNote}</div> : null}
+        {f.imieniny?.length ? (
+          <div style={{ ...text, fontWeight: 800, fontSize: 32, textShadow: "0 2px 12px #000" }}>
+            <span style={{ color: COLORS.blue, fontWeight: 700 }}>Imieniny: </span>{f.imieniny.join(", ")}
+          </div>
+        ) : null}
+      </div>
       {/* zjawisko – podpis */}
       {z ? (
-        <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom + 70, display: "flex", alignItems: "center", gap: 18, background: "rgba(6,12,26,0.82)", border: "1px solid rgba(255,255,255,0.14)", borderLeft: `8px solid ${COLORS.blue}`, borderRadius: 18, padding: "14px 22px", opacity: fx, transform: `translateY(${(1 - fx) * 24}px)` }}>
+        <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom + 60, display: "flex", alignItems: "center", gap: 18, background: "rgba(6,12,26,0.82)", border: "1px solid rgba(255,255,255,0.14)", borderLeft: `8px solid ${COLORS.blue}`, borderRadius: 18, padding: "14px 22px", opacity: fx, transform: `translateY(${(1 - fx) * 24}px)` }}>
           <WeatherIcon kind={z.kind} size={84} />
           <div style={{ ...text, fontWeight: 900, fontSize: 44, lineHeight: 1.1 }}>{z.text}</div>
         </div>
       ) : null}
-      {/* wiatr – legenda */}
-      <div style={{ position: "absolute", left: SAFE.side, bottom: SAFE.bottom + 70, display: "flex", alignItems: "center", gap: 10, opacity: dzien * (1 - fx), ...text, fontWeight: 700, fontSize: 26, textShadow: "0 2px 10px #000" }}>
-        <WindArrow deg={info.windDeg} size={34} /> wiatr {info.windAvg} km/h
+      {/* dół: najpierw słońce, potem dochodzi wiatr */}
+      <div style={{ ...bottomRow, opacity: progress(frame, 10, 26) * (1 - fx) }}>
+        <span><span style={{ color: "#FFC23D" }}>☀</span> {f.sunrise}</span>
+        <span style={{ color: "#FFB48A" }}>↓ {f.sunset}</span>
+        <span style={{ display: "flex", alignItems: "center", gap: 8, opacity: windO * (1 - noc), width: windO * (1 - noc) > 0.01 ? undefined : 0, overflow: "hidden" }}>
+          <span style={{ color: COLORS.muted }}>·</span>
+          <WindArrow deg={info.windDeg} size={34} /> {info.windAvg} km/h
+        </span>
       </div>
-      {/* wschód / zachód w nocy */}
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom + 70, display: "flex", justifyContent: "center", gap: 30, opacity: noc, ...text, fontWeight: 800, fontSize: 32, textShadow: "0 2px 10px #000" }}>
-        <span><span style={{ color: "#FFC23D" }}>☀</span> wschód {f.sunrise}</span>
-        <span style={{ color: COLORS.muted }}>·</span>
-        <span>zachód {f.sunset}</span>
-      </div>
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom + 30, textAlign: "center", ...text, fontWeight: 600, fontSize: 15, color: "rgba(255,255,255,0.55)" }}>
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 28, textAlign: "center", ...text, fontWeight: 500, fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
         Dane: MET Norway (CC BY 4.0) · mapa © OpenStreetMap contributors, AWS Terrain Tiles, GUGiK
       </div>
     </AbsoluteFill>

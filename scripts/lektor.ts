@@ -43,7 +43,7 @@ async function main() {
   // WERSJA 2 (mapa): trzy osobne nagrania – plansza, mapa, myśl dnia – żeby sceny zmieniały się dokładnie po zdaniach
   if (f.lektor && key) {
     f.lektorSec = {};
-    for (const part of ["intro", "mapa", "mysl"] as const) {
+    for (const part of ["intro", "mapa"] as const) {
       const p = path.join(root, "data", `lektor-${part}.mp3`);
       fs.writeFileSync(p, await tts(f.lektor[part]));
       f.lektorSec[part] = duration(p);

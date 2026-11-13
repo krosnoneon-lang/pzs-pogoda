@@ -261,6 +261,19 @@ export const PUBLISH = {
     { network: "facebook", storyOnly: true, data: () => ({ facebookData: { type: "STORY" } }) },
     // { network: "instagram", storyOnly: true, data: () => ({ instagramData: { type: "STORY" } }) },
     // { network: "tiktok", storyOnly: false, data: () => ({ tiktokData: { privacyOption: "PUBLIC_TO_EVERYONE", disableComment: false, disableDuet: false, disableStitch: false } }) },
-    // { network: "youtube", storyOnly: false, data: (f) => ({ youtubeData: { title: `Pogoda Podkarpacie ${f.date}`, type: "short", privacy: "public", madeForKids: false } }) },
+    {
+      network: "youtube",
+      storyOnly: false,
+      data: (f) => ({
+        youtubeData: {
+          title: `Pogoda na Podkarpaciu ${f.date.split("-").reverse().slice(0, 2).join(".")} – prognoza na dziś #shorts`,
+          type: "short",
+          privacy: "public",
+          madeForKids: false,
+          category: "NEWS_POLITICS",
+          tags: ["pogoda", "Podkarpacie", "prognoza pogody", "Rzeszów", "Krosno", "Przemyśl", "Bieszczady"],
+        },
+      }),
+    },
   ] as Net[],
 };

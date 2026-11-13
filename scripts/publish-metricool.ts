@@ -44,35 +44,37 @@ async function main() {
   const mode = env("METRICOOL_MODE", "draft");
   const caption = PUBLISH.caption(f);
 
-  const providers = PUBLISH.networks.map((n) => ({ network: n.network }));
-  const body: Record<string, unknown> = {
-    publicationDate: { dateTime: publicationTime(f.date), timezone: "Europe/Warsaw" },
-    providers,
-    media: [videoUrl],
-    saveExternalMediaFiles: true,
-    autoPublish: true,
-    draft: mode !== "publish",
-    shortener: false,
-    // Stories nie mają opisu – tekst idzie tylko do sieci, które go mają (TikTok, Reels, YouTube)
-    text: PUBLISH.networks.every((n) => n.storyOnly) ? "" : caption,
-  };
-  for (const n of PUBLISH.networks) Object.assign(body, n.data(f, caption));
-
-  if (process.env.METRICOOL_DRY === "1") {
-    console.log("DRY RUN – nic nie wysyłam. Treść żądania:");
-    console.log(JSON.stringify(body, null, 2));
-    return;
-  }
+  // osobny wpis dla każdej sieci – błąd jednej (np. YouTube) nie blokuje drugiej (Story na FB)
   const url = `${API}/v2/scheduler/posts?blogId=${env("METRICOOL_BLOG_ID")}&userId=${env("METRICOOL_USER_ID")}`;
-  const r = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Mc-Auth": env("METRICOOL_USER_TOKEN") },
-    body: JSON.stringify(body),
-  });
-  const txt = await r.text();
-  if (!r.ok) throw new Error(`Metricool ${r.status}: ${txt}`);
-  console.log(`Metricool OK (${mode === "publish" ? "zaplanowano publikację" : "szkic w planerze"}) na ${(body.publicationDate as any).dateTime}`);
-  console.log(txt.slice(0, 500));
+  const when = publicationTime(f.date);
+  const errors: string[] = [];
+  for (const n of PUBLISH.networks) {
+    const body: Record<string, unknown> = {
+      publicationDate: { dateTime: when, timezone: "Europe/Warsaw" },
+      providers: [{ network: n.network }],
+      media: [videoUrl],
+      saveExternalMediaFiles: true,
+      autoPublish: true,
+      draft: mode !== "publish",
+      shortener: false,
+      text: n.storyOnly ? "" : caption, // Stories nie mają opisu
+      ...n.data(f, caption),
+    };
+    if (process.env.METRICOOL_DRY === "1") {
+      console.log(`DRY RUN (${n.network}) – nic nie wysyłam:`);
+      console.log(JSON.stringify(body, null, 2));
+      continue;
+    }
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Mc-Auth": env("METRICOOL_USER_TOKEN") },
+      body: JSON.stringify(body),
+    });
+    const txt = await r.text();
+    if (!r.ok) { errors.push(`${n.network}: Metricool ${r.status}: ${txt.slice(0, 300)}`); console.error(errors[errors.length - 1]); continue; }
+    console.log(`Metricool OK – ${n.network} (${mode === "publish" ? "zaplanowano publikację" : "szkic w planerze"}) na ${when}`);
+  }
+  if (errors.length === PUBLISH.networks.length) throw new Error(errors.join("\n"));
 }
 
 main().catch((e) => {

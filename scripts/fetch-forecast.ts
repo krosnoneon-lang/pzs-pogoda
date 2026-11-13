@@ -311,8 +311,7 @@ function buildV2(f: Omit<Forecast, "voiceoverText">): { lektor: Lektor; mapa: Ma
   const frost = f.cities.filter((c) => c.tNight <= 0).length;
   const noc = `W nocy najzimniej ${loc(byN[0].name)} – ${tSay(byN[0].tNight)}` +
     (frost >= f.cities.length * 0.6 ? ", przymrozki w większości regionu." : frost ? "." : `, najcieplej ${loc(byN[byN.length - 1].name)} – ${tSay(byN[byN.length - 1].tNight)}.`);
-  const warn = f.warnings.map((w) => w.event.toLowerCase().replace(/do (\d{1,2}:\d{2})/g, (_, t) => "do " + timeGen(t)));
-  const ostrz = warn.length ? ` Uwaga, IMGW ostrzega: ${warn.join(" oraz ")}.` : "";
+  const ostrz = warningsSay(f.warnings);
 
   // kolejność: dzień → wiatr → opady (zbliżenie) → noc; czas faz wg długości zdań
   const segs = [dzien + " " + wiatr, zjawisko ? opady : "", noc + ostrz];
@@ -348,6 +347,57 @@ function nextDay(d: string) {
 
 /* ---------- dane testowe (17 miejscowości; wiersz = region) ---------- */
 type Row = [WeatherKind, number, number, number, number, number, number]; // kind, tDay, tNight, pop, wind, gust, windDeg
+/* ---------- ostrzeżenia IMGW dla lektora ----------
+ * Zasada: lektor zawsze mówi, GDZIE obowiązuje które ostrzeżenie. Ostrzeżenia łączone są po rejonach;
+ * jeśli w jednym rejonie jest i deszcz, i śnieg → „deszcz ze śniegiem”. Wspólna godzina końca mówiona raz.
+ */
+const WARN_KIND: [RegExp, string, string][] = [
+  [/deszcz/i, "deszcz", "intensywnym deszczem"],
+  [/śnieg|snieg/i, "snieg", "opadami śniegu"],
+  [/wiatr/i, "wiatr", "silnym wiatrem"],
+  [/burz/i, "burza", "burzami"],
+  [/mróz|mroz/i, "mroz", "mrozem"],
+  [/oblodz|gołoled|goloted/i, "lod", "oblodzeniem dróg"],
+  [/mgł|mgl/i, "mgla", "gęstymi mgłami"],
+  [/upał|upal/i, "upal", "upałem"],
+];
+function warningsSay(ws: Warning[]): string {
+  if (!ws.length) return "";
+  const regOf = (n: string) => (CITIES.find((c) => c.name === n.trim()) as { region?: string } | undefined)?.region;
+  const allRegs = [...new Set(CITIES.map((c) => c.region))];
+  // rejon → zestaw rodzajów zjawisk
+  const per = new Map<string, Map<string, string>>();
+  const hours = new Set<string>();
+  for (const w of ws) {
+    const k = WARN_KIND.find(([re]) => re.test(w.event));
+    const key = k ? k[1] : w.event.toLowerCase();
+    const say = k ? k[2] : w.event.toLowerCase().replace(/\s*do \d{1,2}:\d{2}.*/, "");
+    const h = w.event.match(/do (\d{1,2}:\d{2})/)?.[1];
+    hours.add(h ?? "");
+    const regs = [...new Set(w.area.split(",").map(regOf).filter(Boolean) as string[])];
+    for (const r of regs.length ? regs : allRegs) {
+      if (!per.has(r)) per.set(r, new Map());
+      per.get(r)!.set(key, say);
+    }
+  }
+  // opis zjawisk w rejonie
+  const label = (m: Map<string, string>) => {
+    const keys = [...m.keys()];
+    const parts: string[] = [];
+    if (m.has("deszcz") && m.has("snieg")) parts.push("deszczem ze śniegiem");
+    for (const k of keys) if (!((k === "deszcz" || k === "snieg") && m.has("deszcz") && m.has("snieg"))) parts.push(m.get(k)!);
+    return parts.length > 1 ? parts.slice(0, -1).join(", ") + " i " + parts[parts.length - 1] : parts[0];
+  };
+  const groups = new Map<string, string[]>();
+  for (const r of allRegs) if (per.has(r)) { const l = label(per.get(r)!); groups.set(l, [...(groups.get(l) ?? []), r]); }
+  const where = (rs: string[]) => (rs.length === allRegs.length ? "w całym regionie" : rs.map((r) => REGION_LOC[r]).join(rs.length > 2 ? ", " : " i ").replace(/, ([^,]*)$/, " i $1"));
+  const items = [...groups.entries()].map(([l, rs]) => `${where(rs)} przed ${l}`);
+  const hs = [...hours].filter(Boolean);
+  const kiedy = hs.length === 1 && hours.size === 1 ? ` do ${timeGen(hs[0])}` : "";
+  const txt = items.length > 1 ? items.slice(0, -1).join(", ") + ", a " + items[items.length - 1] : items[0];
+  return ` Uwaga,${kiedy} IMGW ostrzega ${txt}.`;
+}
+
 function mock(scenario: string): { cities: CityForecast[]; warnings: Warning[]; extra: CityForecast[] } {
   const R: Record<string, Record<string, Row>> = {
     listopad: {
@@ -386,7 +436,7 @@ function mock(scenario: string): { cities: CityForecast[]; warnings: Warning[]; 
     const j = (i % 3) - 1;
     return { name: c.name, kind, tDay: tDay + j, tNight: tNight + (i % 2 ? -1 : 0), pop, wind: wind + j * 2, gust, windDir: DIRS8[Math.round(deg / 45) % 8], windDeg: deg + j * 8 };
   });
-  return { cities, warnings, extra };
+  return { cities, warnings: process.env.MOCK_WARN ? JSON.parse(process.env.MOCK_WARN) : warnings, extra };
 }
 
 async function main() {

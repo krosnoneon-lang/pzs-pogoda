@@ -113,7 +113,8 @@ export async function pickSponsor(date = DATE): Promise<Sponsor | null> {
   const wpis = src.harmonogram.find((w) => w.od <= date && date <= w.do && src!.sponsorzy.some((s) => s.id === w.id && s.aktywny));
   if (!wpis) return null;
   const s = src.sponsorzy.find((x) => x.id === wpis.id)!;
-  return { ...s, logo: await logo(s) };
+  const local = ["png", "svg", "jpg"].map((e) => `sponsorzy/${s.id}.${e}`).find((f) => fs.existsSync(path.join(root, f)));
+  return { ...s, logo: (await logo(s).catch(() => undefined)) ?? local };
 }
 
 if (process.argv[1]?.includes("sponsor")) {

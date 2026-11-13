@@ -1,4 +1,8 @@
 {
-  "sponsorzy": [],
-  "harmonogram": []
+  "sponsorzy": [
+    { "id": "grono", "nazwa": "Restauracja Grono", "lektor": "Restauracja Grono w Wyżnem", "logo": "sponsorzy/grono.png", "lat": 49.9266875, "lon": 21.8866875, "podpis": "Wyżne 349B", "haslo": "przy Winnicy Maria Anna", "aktywny": true }
+  ],
+  "harmonogram": [
+    { "od": "2026-11-13", "do": "2026-12-31", "id": "grono" }
+  ]
 }

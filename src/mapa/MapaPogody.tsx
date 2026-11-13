@@ -123,9 +123,9 @@ const GEO_LABELS: { name: string; lat: number; lon: number; kind: "woj" | "obce"
   { name: "Koszyce", lat: 48.7164, lon: 21.2611, kind: "obce" },
   { name: "Lwów", lat: 49.8397, lon: 24.0297, kind: "obce" },
   { name: "Użhorod", lat: 48.6208, lon: 22.2879, kind: "obce" },
-  { name: "SŁOWACJA", lat: 49.03, lon: 21.75, kind: "kraj" },
-  { name: "UKRAINA", lat: 49.62, lon: 23.45, kind: "kraj" },
-  { name: "WĘGRY", lat: 48.33, lon: 21.9, kind: "kraj" },
+  { name: "SŁOWACJA", lat: 48.95, lon: 20.6, kind: "kraj" },
+  { name: "UKRAINA", lat: 49.3, lon: 23.35, kind: "kraj" },
+  { name: "WĘGRY", lat: 48.25, lon: 21.4, kind: "kraj" },
 ];
 
 /** największe miasta – nazwa większymi literami */
@@ -280,10 +280,12 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
   const windO = progress(frame, introFr - 4, introFr + 12);
   const warnO = f.warnings.length ? progress(frame, fr(nightStart) + 30, fr(nightStart) + 46) : 0;
   const A: Cam = z ? { lng: z.lon, lat: z.lat + 0.03, zoom: 9.6, pitch: 56, bearing: -16 } : OVERVIEW;
-  const START: Cam = { ...OVERVIEW, lng: OVERVIEW.lng - 0.15, zoom: OVERVIEW.zoom - 0.3, pitch: 30, bearing: -34 };
+  // otwarcie szerokie: widać Kraków, Kielce, Lublin, Lwów, Koszyce i granice państw
+  const START: Cam = { lng: 21.95, lat: 49.72, zoom: 6.95, pitch: 22, bearing: 0 };
   const kfs: Keyframe[] = z
     ? [
         { t: 0, cam: START },
+        { t: 80 / Math.max(1, dur - 1), cam: { ...START, zoom: START.zoom + 0.12 } },
         { t: T(0) , cam: OVERVIEW },
         { t: T(fz.dzien[1] * 0.85), cam: { ...OVERVIEW, bearing: OVERVIEW.bearing + 4 } },
         { t: T(fz.zjawisko![0] + 0.06), cam: A },
@@ -293,6 +295,7 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
       ]
     : [
         { t: 0, cam: START },
+        { t: 80 / Math.max(1, dur - 1), cam: { ...START, zoom: START.zoom + 0.12 } },
         { t: T(0), cam: OVERVIEW },
         { t: 1, cam: { ...OVERVIEW, bearing: OVERVIEW.bearing - 6, zoom: OVERVIEW.zoom + 0.08 } },
       ];
@@ -303,7 +306,7 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
   if (sf && SPC) {
     const a = Math.max(6, iF(sf[0]) - 6), b = iF(sf[1]) + 14;
     const hold = { t: (b) / (dur - 1), cam: { ...SPC, bearing: SPC.bearing - 8, zoom: SPC.zoom + 0.12 } };
-    kfs.splice(1, 0, { t: Math.max(1, a - 30) / (dur - 1), cam: { ...START, bearing: START.bearing + 6 } }, { t: a / (dur - 1), cam: SPC }, hold);
+    kfs.splice(2, 0, { t: Math.max(95, a - 32) / (dur - 1), cam: { ...OVERVIEW, zoom: OVERVIEW.zoom - 0.4, pitch: 34 } }, { t: a / (dur - 1), cam: SPC }, hold);
   }
   const spBoost = (q: number) => (sf ? progress(q, iF(sf[0]) - 6, iF(sf[0]) + 4) * (1 - progress(q, iF(sf[1]) + 10, iF(sf[1]) + 24)) : 0);
   const camOf = (q: number) => camAt(promo ? promo.kfs : kfs, Math.min(1, Math.max(0, q / Math.max(1, dur - 1))));
@@ -429,20 +432,6 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
         const el = geoRefs.current[i];
         if (!el) return;
         const q = map.project([g.lon, g.lat]);
-        if (g.kind === "kraj") {
-          // państwo poza kadrem → napis przyklejony do krawędzi z trójkątem wskazującym kierunek
-          const yMax = H - SAFE.bottom - 215, yMin = SAFE.top + 300, xMin = 150, xMax = W - 150;
-          const out = q.y > yMax ? "s" : q.y < yMin ? "n" : q.x < xMin ? "w" : q.x > xMax ? "e" : "";
-          const x = Math.min(xMax, Math.max(xMin, q.x)), y = Math.min(yMax, Math.max(yMin, q.y));
-          el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
-          const arr = el.querySelector("[data-arr]") as HTMLElement | null;
-          if (arr) {
-            arr.style.display = out ? "block" : "none";
-            arr.style.transform = `rotate(${{ s: 0, w: 90, n: 180, e: 270, "": 0 }[out]}deg)`;
-          }
-          el.style.opacity = (progress(frame, 10, 28) * (1 - fx)).toFixed(3);
-          return;
-        }
         el.style.transform = `translate(${q.x.toFixed(1)}px, ${q.y.toFixed(1)}px)`;
         const inView = Math.min(progress(q.y, SAFE.top + 230, SAFE.top + 290), 1 - progress(q.y, H - SAFE.bottom - 200, H - SAFE.bottom - 150), progress(q.x, 30, 110), 1 - progress(q.x, W - 110, W - 30));
         el.style.opacity = (progress(frame, 10, 28) * Math.max(0, inView)).toFixed(3);

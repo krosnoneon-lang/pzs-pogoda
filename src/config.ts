@@ -273,7 +273,7 @@ export const PUBLISH = {
     //       category: "NEWS_POLITICS",
     //       tags: ["pogoda", "Podkarpacie", "prognoza pogody", "Rzeszów", "Krosno", "Przemyśl", "Bieszczady"],
     //     },
-      }),
-    },
+    //   }),
+    // },
   ] as Net[],
 };

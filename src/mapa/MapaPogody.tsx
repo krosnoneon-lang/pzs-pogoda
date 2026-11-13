@@ -114,6 +114,20 @@ const Zjawisko: React.FC<{ kind: WeatherKind; frame: number; opacity: number }> 
   );
 };
 
+/** tło geograficzne: stolice sąsiednich województw, duże miasta za granicą, nazwy państw (pokazywane tylko gdy są w kadrze) */
+const GEO_LABELS: { name: string; lat: number; lon: number; kind: "woj" | "obce" | "kraj" }[] = [
+  { name: "Lublin", lat: 51.2465, lon: 22.5684, kind: "woj" },
+  { name: "Kielce", lat: 50.8661, lon: 20.6286, kind: "woj" },
+  { name: "Kraków", lat: 50.0647, lon: 19.945, kind: "woj" },
+  { name: "Preszów", lat: 48.9984, lon: 21.2339, kind: "obce" },
+  { name: "Koszyce", lat: 48.7164, lon: 21.2611, kind: "obce" },
+  { name: "Lwów", lat: 49.8397, lon: 24.0297, kind: "obce" },
+  { name: "Użhorod", lat: 48.6208, lon: 22.2879, kind: "obce" },
+  { name: "SŁOWACJA", lat: 49.03, lon: 21.75, kind: "kraj" },
+  { name: "UKRAINA", lat: 49.62, lon: 23.45, kind: "kraj" },
+  { name: "WĘGRY", lat: 48.33, lon: 21.9, kind: "kraj" },
+];
+
 /** największe miasta – nazwa większymi literami */
 const BIG = new Set(["Rzeszów", "Krosno", "Przemyśl", "Tarnobrzeg"]);
 
@@ -227,6 +241,7 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
   const containerRef = useRef<HTMLDivElement>(null);
   const refs = useRef<Map<string, HTMLDivElement>>(new Map());
   const spRef = useRef<HTMLDivElement>(null);
+  const geoRefs = useRef<(HTMLDivElement | null)[]>([]);
   const sp = f.sponsor ?? null;
   const layoutCache = useRef<Map<number, Map<string, { pl: Place | null; below?: boolean }>>>(new Map());
   const [map, setMap] = useState<MlMap | null>(null);
@@ -315,6 +330,9 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
     m.on("error", (e) => console.error("MapLibre:", e.error?.message ?? e));
     m.on("load", () => {
       for (const id of ["rail-czynna", "rail-czynna-podklady", "rail-budowa", "rail-planowana"]) m.setLayoutProperty(id, "visibility", "none");
+      // granica Polski – wyraźna linia z poświatą
+      m.addLayer({ id: "pl-border-glow", type: "line", source: "countries", filter: ["==", ["get", "a3"], "POL"], layout: { "line-join": "round" }, paint: { "line-color": "#ff5a6e", "line-opacity": 0.25, "line-blur": 6, "line-width": ["interpolate", ["linear"], ["zoom"], 7, 6, 10, 12] } });
+      m.addLayer({ id: "pl-border", type: "line", source: "countries", filter: ["==", ["get", "a3"], "POL"], layout: { "line-join": "round" }, paint: { "line-color": "#ffd0d6", "line-opacity": 0.85, "line-width": ["interpolate", ["linear"], ["zoom"], 7, 1.6, 10, 3] } });
       // obrysy miast (granice administracyjne z OSM) – widać miasto także wtedy, gdy jego chmurka się chowa
       m.addSource("obrysy", { type: "geojson", data: abs("mapa/data/obrysy.geojson") });
       const main = ["in", ["get", "name"], ["literal", CITIES.map((c) => c.name)]] as unknown as maplibregl.FilterSpecification;
@@ -407,6 +425,28 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
       const L0 = layoutAt(q0), L1 = layoutAt(q1);
       const a = (frame - q0) / STEP;
       const e = a * a * (3 - 2 * a);
+      GEO_LABELS.forEach((g, i) => {
+        const el = geoRefs.current[i];
+        if (!el) return;
+        const q = map.project([g.lon, g.lat]);
+        if (g.kind === "kraj") {
+          // państwo poza kadrem → napis przyklejony do krawędzi z trójkątem wskazującym kierunek
+          const yMax = H - SAFE.bottom - 215, yMin = SAFE.top + 300, xMin = 150, xMax = W - 150;
+          const out = q.y > yMax ? "s" : q.y < yMin ? "n" : q.x < xMin ? "w" : q.x > xMax ? "e" : "";
+          const x = Math.min(xMax, Math.max(xMin, q.x)), y = Math.min(yMax, Math.max(yMin, q.y));
+          el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+          const arr = el.querySelector("[data-arr]") as HTMLElement | null;
+          if (arr) {
+            arr.style.display = out ? "block" : "none";
+            arr.style.transform = `rotate(${{ s: 0, w: 90, n: 180, e: 270, "": 0 }[out]}deg)`;
+          }
+          el.style.opacity = (progress(frame, 10, 28) * (1 - fx)).toFixed(3);
+          return;
+        }
+        el.style.transform = `translate(${q.x.toFixed(1)}px, ${q.y.toFixed(1)}px)`;
+        const inView = Math.min(progress(q.y, SAFE.top + 230, SAFE.top + 290), 1 - progress(q.y, H - SAFE.bottom - 200, H - SAFE.bottom - 150), progress(q.x, 30, 110), 1 - progress(q.x, W - 110, W - 30));
+        el.style.opacity = (progress(frame, 10, 28) * Math.max(0, inView)).toFixed(3);
+      });
       if (sp && spRef.current) {
         const q = map.project([sp.lon, sp.lat]);
         spRef.current.style.transform = `translate(${q.x.toFixed(1)}px, ${q.y.toFixed(1)}px)`;
@@ -457,6 +497,21 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
       {z ? <Zjawisko kind={z.kind} frame={frame} opacity={fx} /> : null}
       {/* karty */}
       <AbsoluteFill>
+        {GEO_LABELS.map((g, i) => (
+          <div key={g.name} ref={(el) => { geoRefs.current[i] = el; }} style={{ position: "absolute", left: 0, top: 0, opacity: 0, zIndex: 0 }}>
+            {g.kind === "kraj" ? (
+              <div style={{ position: "absolute", transform: "translate(-50%, -50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                <div style={{ ...text, fontWeight: 800, fontSize: 30, letterSpacing: 12, color: "rgba(255,255,255,0.38)", whiteSpace: "nowrap", textShadow: "0 2px 10px #000" }}>{g.name}</div>
+                <div data-arr="1" style={{ display: "none", width: 0, height: 0, borderLeft: "9px solid transparent", borderRight: "9px solid transparent", borderTop: "12px solid rgba(255,255,255,0.38)" }} />
+              </div>
+            ) : (
+              <div style={{ position: "absolute", transform: "translate(-50%, -50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                <div style={{ width: g.kind === "woj" ? 11 : 9, height: g.kind === "woj" ? 11 : 9, background: g.kind === "woj" ? "#fff" : "rgba(255,255,255,0.7)", borderRadius: g.kind === "woj" ? 2 : "50%", boxShadow: "0 0 8px rgba(0,0,0,0.8)" }} />
+                <div style={{ ...text, fontWeight: g.kind === "woj" ? 800 : 700, fontSize: g.kind === "woj" ? 20 : 17, color: g.kind === "woj" ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.6)", textShadow: "0 2px 8px #000", whiteSpace: "nowrap" }}>{g.name}</div>
+              </div>
+            )}
+          </div>
+        ))}
         {cities.map((c, i) => (
           <React.Fragment key={c.name}>
             <Card ref={(el) => { if (el) refs.current.set(`d${i}`, el); }} name={c.name} kind={c.kind} t={c.tDay} wind={{ deg: c.windDeg ?? info.windDeg, v: c.wind }} hi={c.tDay === maxD ? "max" : undefined} dol={"dol" in c.cfg! && c.cfg!.dol} />

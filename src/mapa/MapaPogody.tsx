@@ -148,10 +148,15 @@ const layout = (items: Item[], last: Map<string, Place>, top: number, bottom: nu
     }
     const cands = prev ? [prev, ...base] : base;
     let ok: Place | null = null;
+    const ovl = (a: Rect, b: Rect) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
     for (const pl of cands) {
       const r = rectOf(it.x, it.y, w, h, pl);
-      if (r.y0 < top || r.y1 > bottom || r.x0 < 8 || r.x1 > W - 8) continue;
-      if (placed.some((q) => hit(q, r))) continue;
+      const isPrev = !!prev && pl === prev;
+      // poprzednie miejsce: tolerujemy margines ekranu i lekkie zachodzenie (≤12%), żeby chmurka nie skakała
+      const m = isPrev ? 20 : 0;
+      if (r.y0 < top - m || r.y1 > bottom + m || r.x0 < 8 - m || r.x1 > W - 8 + m) continue;
+      const area = (r.x1 - r.x0) * (r.y1 - r.y0);
+      if (isPrev ? placed.reduce((sum, q) => sum + ovl(q, r), 0) > 0.12 * area : placed.some((q) => hit(q, r))) continue;
       if (it.prio < 70 && dots.some((d) => hit(d, r) && !(d.x0 === it.x - 8 && d.y0 === it.y - 8))) continue;
       ok = pl; break;
     }
@@ -172,16 +177,16 @@ const applyPlace = (el: HTMLDivElement, pl: Place) => {
 };
 
 /* ---------- znacznik sponsora: przez całą prognozę ---------- */
-const SPW = 116, SPH = 86;
+const SPW = 150, SPH = 94;
 /** czy plakietka ma wisieć POD punktem (gdy nad nim leży któreś z głównych miast) */
 const pinBelow = (s: { lat: number; lon: number }) =>
   CITIES.some((c) => c.lat - s.lat > 0.03 && c.lat - s.lat < 0.32 && Math.abs(c.lon - s.lon) < 0.3);
 const SponsorPin = React.forwardRef<HTMLDivElement, { s: NonNullable<Forecast["sponsor"]>; o: number; boost?: number }>(({ s, o, boost = 0 }, ref) => (
   <div ref={ref} style={{ position: "absolute", left: 0, top: 0, zIndex: 20, opacity: o }}>
-    {boost > 0.01 ? <div style={{ position: "absolute", width: 260, height: 260, left: -130, top: -130, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,210,63,0.45) 0%, rgba(255,210,63,0) 65%)", opacity: boost, transform: `scale(${0.6 + boost * 0.6})` }} /> : null}
+    {boost > 0.01 ? <div style={{ position: "absolute", width: 300, height: 300, left: -150, top: -150 + (pinBelow(s) ? 1 : -1) * (SPH / 2 + 8) * (1 + boost * 0.9), borderRadius: "50%", background: "radial-gradient(circle, rgba(255,210,63,0.45) 0%, rgba(255,210,63,0) 65%)", opacity: boost, transform: `scale(${0.6 + boost * 0.6})` }} /> : null}
     <div style={{ position: "absolute", transformOrigin: pinBelow(s) ? "50% 0%" : "50% 100%", transform: (pinBelow(s) ? "translate(-50%, 0)" : "translate(-50%, -100%)") + ` scale(${1 + boost * 0.9})`, display: "flex", flexDirection: pinBelow(s) ? "column-reverse" : "column", alignItems: "center" }}>
       <div style={{ width: SPW, background: "rgba(10,16,32,0.92)", borderRadius: 18, padding: "8px 10px 6px", boxShadow: "0 0 0 3px #FFD23F, 0 8px 26px rgba(0,0,0,0.55)", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-        {s.logo ? <Img src={staticFile(s.logo)} style={{ width: SPW - 20, height: 42, objectFit: "contain" }} /> : <div style={{ ...text, fontWeight: 900, fontSize: 22, textAlign: "center", lineHeight: 1.05 }}>{s.nazwa}</div>}
+        {s.logo ? <Img src={staticFile(s.logo)} style={{ width: SPW - 28, height: 46, objectFit: "contain" }} /> : <div style={{ ...text, fontWeight: 900, fontSize: 22, textAlign: "center", lineHeight: 1.05 }}>{s.nazwa}</div>}
         <div style={{ ...text, color: "#FFD23F", fontWeight: 800, fontSize: 11, letterSpacing: 0.5, textTransform: "uppercase", whiteSpace: "nowrap" }}>Sponsor pogody</div>
       </div>
       <div style={{ width: 0, height: 0, borderLeft: "10px solid transparent", borderRight: "10px solid transparent", ...(pinBelow(s) ? { borderBottom: "14px solid #FFD23F" } : { borderTop: "14px solid #FFD23F" }) }} />
@@ -276,6 +281,16 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
         { t: T(0), cam: OVERVIEW },
         { t: 1, cam: { ...OVERVIEW, bearing: OVERVIEW.bearing - 6, zoom: OVERVIEW.zoom + 0.08 } },
       ];
+  /* zbliżenie na sponsora w trakcie zdania „Sponsorem pogody jest …” (powitanie) */
+  const sf = !promo && sp && info.sponsorFaza ? info.sponsorFaza : null;
+  const iF = (x: number) => 15 + x * Math.max(1, introFr - 15 - 8); // ułamek nagrania powitania → klatka
+  const SPC: Cam | null = sp ? { lng: sp.lon, lat: sp.lat + (pinBelow(sp) ? -0.035 : 0.02), zoom: 10.9, pitch: 48, bearing: 6 } : null;
+  if (sf && SPC) {
+    const a = Math.max(6, iF(sf[0]) - 6), b = iF(sf[1]) + 14;
+    const hold = { t: (b) / (dur - 1), cam: { ...SPC, bearing: SPC.bearing - 8, zoom: SPC.zoom + 0.12 } };
+    kfs.splice(1, 0, { t: Math.max(1, a - 30) / (dur - 1), cam: { ...START, bearing: START.bearing + 6 } }, { t: a / (dur - 1), cam: SPC }, hold);
+  }
+  const spBoost = (q: number) => (sf ? progress(q, iF(sf[0]) - 6, iF(sf[0]) + 4) * (1 - progress(q, iF(sf[1]) + 10, iF(sf[1]) + 24)) : 0);
   const camOf = (q: number) => camAt(promo ? promo.kfs : kfs, Math.min(1, Math.max(0, q / Math.max(1, dur - 1))));
   const cam = camOf(frame);
 
@@ -351,9 +366,22 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
       }
       extras.forEach((c, i) => keys.push({ key: `x${i}`, lon: c.cfg!.lon, lat: c.cfg!.lat, prio: 10 - i * 0.1, dol: false, vis: (q) => phasesP(q).fx }));
       const tr0 = (map as unknown as { transform: { clone(): any } }).transform;
-      const layoutAt = (q: number) => {
+      /* układ liczony po kolei od klatki 0: każdy krok najpierw próbuje zostawić chmurkę tam, gdzie była.
+       * Deterministyczny (nie zależy od kolejności renderu), a chmurki zmieniają stronę tylko gdy muszą. */
+      const layoutAt = (q: number): Map<string, { pl: Place | null }> => {
         const hitC = layoutCache.current.get(q);
         if (hitC) return hitC;
+        let qs = q - STEP;
+        while (qs >= 0 && !layoutCache.current.has(qs)) qs -= STEP;
+        for (let k = Math.max(0, qs + STEP); k < q; k += STEP) layoutOne(k);
+        return layoutOne(q);
+      };
+      const layoutOne = (q: number) => {
+        const hitC = layoutCache.current.get(q);
+        if (hitC) return hitC;
+        const prevL = layoutCache.current.get(q - STEP);
+        const last = new Map<string, Place>();
+        if (prevL) for (const [k, v] of prevL) if (v.pl) last.set(k, v.pl);
         const c = camOf(q);
         const tr = tr0.clone();
         tr.setCenter(new maplibregl.LngLat(c.lng, c.lat)); tr.setZoom(c.zoom); tr.setPitch(c.pitch); tr.setBearing(c.bearing);
@@ -370,7 +398,7 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
           }
           const obst: Rect[] = [];
           if (sp) { const q = tr.locationToScreenPoint(new maplibregl.LngLat(sp.lon, sp.lat), map.terrain ?? undefined); obst.push(pinBelow(sp) ? { x0: q.x - SPW / 2 - 6, y0: q.y - 8, x1: q.x + SPW / 2 + 6, y1: q.y + SPH + 16 } : { x0: q.x - SPW / 2 - 6, y0: q.y - SPH - 16, x1: q.x + SPW / 2 + 6, y1: q.y + 8 }); }
-          for (const [kk, pl] of layout(items, new Map(), top, bottom, obst)) out.set(kk, { pl });
+          for (const [kk, pl] of layout(items, last, top, bottom, obst)) out.set(kk, { pl });
         }
         layoutCache.current.set(q, out);
         return out;
@@ -477,7 +505,7 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
           {f.warnings.slice(0, 2).map((w) => <div key={w.event} style={{ ...text, fontWeight: 800, fontSize: 30, lineHeight: 1.1 }}>{w.event}</div>)}
         </div>
       ) : null}
-      {sp ? <SponsorPin ref={spRef} s={sp} o={0} boost={promo ? promo.pinBoost(frame) : 0} /> : null}
+      {sp ? <SponsorPin ref={spRef} s={sp} o={0} boost={promo ? promo.pinBoost(frame) : spBoost(frame)} /> : null}
       <div style={{ position: "absolute", left: 0, right: 0, bottom: 28, textAlign: "center", ...text, fontWeight: 500, fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
         Dane: MET Norway (CC BY 4.0) · mapa © OpenStreetMap contributors, AWS Terrain Tiles, GUGiK
       </div>

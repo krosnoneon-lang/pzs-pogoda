@@ -326,6 +326,13 @@ function buildV2(f: Omit<Forecast, "voiceoverText">): { lektor: Lektor; mapa: Ma
       zjawisko,
       windDeg,
       windAvg: Math.round(windAvg),
+      // gdzie w powitaniu pada zdanie o sponsorze (ułamki nagrania powitania) – wtedy kamera zbliża się do sponsora
+      sponsorFaza: (() => {
+        const i = intro.indexOf("Sponsorem pogody");
+        if (i < 0) return null;
+        const j = intro.indexOf(".", i) + 1;
+        return [i / intro.length, j / intro.length] as [number, number];
+      })(),
       fazy: zjawisko
         ? { dzien: [0, l0], zjawisko: [l0, l0 + l1], noc: [l0 + l1, 1] }
         : { dzien: [0, l0], zjawisko: null, noc: [l0, 1] },

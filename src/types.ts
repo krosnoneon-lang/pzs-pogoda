@@ -38,6 +38,7 @@ export type MapaInfo = {
   windAvg: number;
   /** podział czasu sceny mapy (ułamki 0..1) wg długości zdań lektora */
   sponsorFaza?: [number, number] | null;
+  cele?: { a: number; b: number; lat: number; lon: number; zoom: number; hi: "max" | "min" }[];
   fazy: { dzien: [number, number]; zjawisko: [number, number] | null; noc: [number, number] };
 };
 

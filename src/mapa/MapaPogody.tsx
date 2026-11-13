@@ -259,6 +259,8 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
     [f.extra],
   );
   const maxD = Math.max(...cities.map((c) => c.tDay));
+  const minD0 = Math.min(...cities.map((c) => c.tDay));
+  const minD = minD0 === maxD ? Number.NaN : minD0;
   const minN = Math.min(...cities.map((c) => c.tNight));
 
   /* ---------- oś czasu sceny ----------
@@ -273,8 +275,11 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
     noc: progress(q, fr(nightStart) + 4, fr(nightStart) + 20),
     fx: z ? progress(q, fr(fz.zjawisko![0]) + 10, fr(fz.zjawisko![0]) + 26) * (1 - progress(q, fr(fz.zjawisko![1]) - 14, fr(fz.zjawisko![1]))) : 0,
   });
-  const phasesP = promo ? (q: number) => ({ dzien: progress(q, 4, 16), noc: 0, fx: promo.fx(q) }) : phases;
+  const cele = !promo ? info.cele ?? [] : [];
+  const celFxRef = (q: number) => Math.max(0, ...cele.map((c) => progress(q, fr(c.a) + 6, fr(c.a) + 18) * (1 - progress(q, fr(c.b) - 4, fr(c.b) + 8))));
+  const phasesP = promo ? (q: number) => ({ dzien: progress(q, 4, 16), noc: 0, fx: promo.fx(q) }) : (q: number) => { const ph = phases(q); return { ...ph, fx: Math.max(ph.fx, celFxRef(q)) }; };
   const { dzien, noc, fx } = phasesP(frame);
+  const zfx = promo ? 0 : phases(frame).fx; // tylko zbliżenie na zjawisko (opady/mgła)
   const jasnosc = progress(frame, 0, 12) * (1 - progress(frame, fr(nightStart) - 6, fr(nightStart) + 14));
   const imieninyO = promo ? progress(frame, 8, 24) * (1 - fx) : progress(frame, 8, 24) * (1 - progress(frame, z ? fr(fz.zjawisko![0]) - 6 : fr(nightStart) - 8, z ? fr(fz.zjawisko![0]) + 8 : fr(nightStart) + 4));
   const windO = progress(frame, introFr - 4, introFr + 12);
@@ -299,6 +304,19 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
         { t: T(0), cam: OVERVIEW },
         { t: 1, cam: { ...OVERVIEW, bearing: OVERVIEW.bearing - 6, zoom: OVERVIEW.zoom + 0.08 } },
       ];
+  /* kamera podąża za lektorem: najcieplej / najchłodniej */
+  if (cele.length) {
+    const wins = cele.map((c) => [T(c.a) - 0.012, T(c.b) + 0.01] as const);
+    for (let i = kfs.length - 1; i >= 0; i--) if (wins.some(([x, y]) => kfs[i].t > x && kfs[i].t < y + 0.04)) kfs.splice(i, 1);
+    cele.forEach((c, i) => {
+      const cam0: Cam = { lng: c.lon, lat: c.lat + 0.03, zoom: c.zoom, pitch: 54, bearing: i % 2 ? 10 : -14 };
+      kfs.push({ t: T(c.a) + 0.012, cam: cam0 }, { t: T(c.b) - 0.004, cam: { ...cam0, bearing: cam0.bearing + 6, zoom: cam0.zoom + 0.12 } });
+      const next = cele[i + 1];
+      if (!next || T(next.a) - T(c.b) > 0.06) kfs.push({ t: Math.min(0.995, T(c.b) + 0.04), cam: OVERVIEW });
+    });
+    kfs.sort((x, y) => x.t - y.t);
+  }
+
   /* zbliżenie na sponsora w trakcie zdania „Sponsorem pogody jest …” (powitanie) */
   const sf = !promo && sp && info.sponsorFaza ? info.sponsorFaza : null;
   const iF = (x: number) => 15 + x * Math.max(1, introFr - 15 - 8); // ułamek nagrania powitania → klatka
@@ -378,14 +396,14 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
       const keys: { key: string; lon: number; lat: number; prio: number; dol: boolean; vis: (q: number) => number }[] = [];
       for (const night of [false, true]) {
         cities.forEach((c, i) => {
-          const hi = night ? c.tNight === minN : c.tDay === maxD;
+          const hi = night ? c.tNight === minN : c.tDay === maxD || c.tDay === minD;
           keys.push({
             key: `${night ? "n" : "d"}${i}`, lon: c.cfg!.lon, lat: c.cfg!.lat, prio: hi ? 100 : BIG.has(c.name) ? 70 : 50 - i * 0.1, dol: "dol" in c.cfg! && !!c.cfg!.dol,
             vis: (q) => { const ph = phasesP(q); return Math.min(1, Math.max(0, (night ? ph.noc : ph.dzien) * cities.length - i * 0.55)); },
           });
         });
       }
-      extras.forEach((c, i) => keys.push({ key: `x${i}`, lon: c.cfg!.lon, lat: c.cfg!.lat, prio: 10 - i * 0.1, dol: false, vis: (q) => phasesP(q).fx }));
+      extras.forEach((c, i) => keys.push({ key: `x${i}`, lon: c.cfg!.lon, lat: c.cfg!.lat, prio: 10 - i * 0.1, dol: false, vis: (q) => { const ph = phasesP(q); return ph.fx * (1 - ph.noc); } }));
       const tr0 = (map as unknown as { transform: { clone(): any } }).transform;
       /* układ liczony po kolei od klatki 0: każdy krok najpierw próbuje zostawić chmurkę tam, gdzie była.
        * Deterministyczny (nie zależy od kolejności renderu), a chmurki zmieniają stronę tylko gdy muszą. */
@@ -483,7 +501,7 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
       <AbsoluteFill style={{ background: "radial-gradient(ellipse at 70% 0%, rgba(255,190,110,.55), rgba(255,170,90,0) 60%)", opacity: 0.6 * jasnosc, mixBlendMode: "screen" }} />
       <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 55%, rgba(0,0,0,0) 55%, rgba(2,5,12,.55) 100%)" }} />
       <WindStreaks deg={info.windDeg} v={info.windAvg} opacity={dzien} frame={frame} />
-      {z ? <Zjawisko kind={z.kind} frame={frame} opacity={fx} /> : null}
+      {z ? <Zjawisko kind={z.kind} frame={frame} opacity={zfx} /> : null}
       {/* karty */}
       <AbsoluteFill>
         {GEO_LABELS.map((g, i) => (
@@ -503,7 +521,7 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
         ))}
         {cities.map((c, i) => (
           <React.Fragment key={c.name}>
-            <Card ref={(el) => { if (el) refs.current.set(`d${i}`, el); }} name={c.name} kind={c.kind} t={c.tDay} wind={{ deg: c.windDeg ?? info.windDeg, v: c.wind }} hi={c.tDay === maxD ? "max" : undefined} dol={"dol" in c.cfg! && c.cfg!.dol} />
+            <Card ref={(el) => { if (el) refs.current.set(`d${i}`, el); }} name={c.name} kind={c.kind} t={c.tDay} wind={{ deg: c.windDeg ?? info.windDeg, v: c.wind }} hi={c.tDay === maxD ? "max" : c.tDay === minD ? "min" : undefined} dol={"dol" in c.cfg! && c.cfg!.dol} />
             <Card ref={(el) => { if (el) refs.current.set(`n${i}`, el); }} name={c.name} kind="noc" t={c.tNight} hi={c.tNight === minN ? "min" : undefined} dol={"dol" in c.cfg! && c.cfg!.dol} />
           </React.Fragment>
         ))}
@@ -529,7 +547,7 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
       </div>
       {/* zjawisko – podpis */}
       {z ? (
-        <div style={{ position: "absolute", left: SLOT_L, right: SAFE.side, bottom: SAFE.bottom + 52, display: "flex", alignItems: "center", gap: 14, background: "rgba(6,12,26,0.82)", border: "1px solid rgba(255,255,255,0.14)", borderLeft: `8px solid ${COLORS.blue}`, borderRadius: 18, padding: "14px 22px", opacity: fx, transform: `translateY(${(1 - fx) * 24}px)` }}>
+        <div style={{ position: "absolute", left: SLOT_L, right: SAFE.side, bottom: SAFE.bottom + 52, display: "flex", alignItems: "center", gap: 14, background: "rgba(6,12,26,0.82)", border: "1px solid rgba(255,255,255,0.14)", borderLeft: `8px solid ${COLORS.blue}`, borderRadius: 18, padding: "14px 22px", opacity: zfx, transform: `translateY(${(1 - zfx) * 24}px)` }}>
           <WeatherIcon kind={z.kind} size={70} />
           <div style={{ ...text, fontWeight: 900, fontSize: 36, lineHeight: 1.1 }}>{z.text}</div>
         </div>

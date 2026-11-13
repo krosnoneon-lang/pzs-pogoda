@@ -240,6 +240,28 @@ const WET: Record<string, { sev: number; say: string }> = {
   snieg: { sev: 4, say: "pada śnieg" }, deszcz: { sev: 3, say: "popada deszcz" }, mgla: { sev: 2, say: "gęste mgły" },
 };
 const loc = (name: string) => CITIES.find((c) => c.name === name)?.loc ?? `w ${name}`;
+const IMPORTANT = ["Rzeszów", "Krosno", "Przemyśl", "Tarnobrzeg", "Sanok", "Mielec", "Stalowa Wola", "Jasło", "Dębica", "Jarosław"];
+const regOf = (n: string) => (CITIES.find((c) => c.name === n) as { region?: string } | undefined)?.region ?? "";
+const rank = (n: string) => { const i = IMPORTANT.indexOf(n); return i < 0 ? 99 : i; };
+/** jak lektor nazywa miejsce (lub kilka miejsc z tą samą temperaturą) */
+function placeSay(cs: { name: string }[]): string {
+  if (cs.length === 1) return loc(cs[0].name);
+  const regs = new Set(cs.map((c) => regOf(c.name)));
+  if ([...regs].every((r) => r === "bieszczady" || r === "pogorze")) return "na południu, w górach";
+  if (regs.size === 1) return REGION_LOC[[...regs][0]];
+  const top = [...cs].sort((a, b) => rank(a.name) - rank(b.name)).slice(0, 2);
+  return top.map((c) => loc(c.name)).join(" i ");
+}
+/** gdzie ma lecieć kamera dla tych miejsc */
+function placeCam(cs: { name: string }[]): { lat: number; lon: number; zoom: number } {
+  const pts = cs.map((c) => CITIES.find((x) => x.name === c.name)!).filter(Boolean);
+  const regs = new Set(cs.map((c) => regOf(c.name)));
+  const spread = regs.size > 1 && ![...regs].every((r) => r === "bieszczady" || r === "pogorze");
+  const use = spread ? [[...pts].sort((a, b) => rank(a.name) - rank(b.name))[0]] : pts;
+  const lat = use.reduce((a, c) => a + c.lat, 0) / use.length, lon = use.reduce((a, c) => a + c.lon, 0) / use.length;
+  const ext = Math.max(...use.map((c) => Math.max(Math.abs(c.lat - lat), Math.abs(c.lon - lon) * 0.65)));
+  return { lat, lon, zoom: ext > 0.3 ? 8.7 : ext > 0.12 ? 9.0 : 9.4 };
+}
 /** „do pięćdziesięciu pięciu kilometrów na godzinę” (dopełniacz) */
 const GEN_T: Record<number, string> = { 10: "dziesięciu", 20: "dwudziestu", 30: "trzydziestu", 40: "czterdziestu", 50: "pięćdziesięciu", 60: "sześćdziesięciu", 70: "siedemdziesięciu", 80: "osiemdziesięciu", 90: "dziewięćdziesięciu" };
 const kmh = (n: number) => {
@@ -260,12 +282,13 @@ function buildV2(f: Omit<Forecast, "voiceoverText">): { lektor: Lektor; mapa: Ma
     f.fullMoon ? "Wieczorem pełnia księżyca." : "",
   ].filter(Boolean).join(" ");
 
-  // dzień: najcieplej / najchłodniej
+  // dzień: najcieplej / najchłodniej – przy remisie: jeden rejon → nazwa rejonu, rozrzucone → 2 najważniejsze miejsca
   const byD = [...f.cities].sort((a, b) => b.tDay - a.tDay);
   const hot = byD[0], cold = byD[byD.length - 1];
+  const hots = f.cities.filter((c) => c.tDay === hot.tDay), colds = f.cities.filter((c) => c.tDay === cold.tDay);
   const dzien = hot.tDay === cold.tDay
     ? `W dzień w całym regionie około ${tSay(hot.tDay)}.`
-    : `W dzień najcieplej ${loc(hot.name)} – ${tSay(hot.tDay)}, najchłodniej ${loc(cold.name)} – ${tSay(cold.tDay)}.`;
+    : `W dzień najcieplej ${placeSay(hots)} – ${tSay(hot.tDay)}. Najchłodniej ${placeSay(colds)} – ${tSay(cold.tDay)}.`;
 
   // wiatr: przeważający kierunek (średnia wektorowa), porywy
   let vx = 0, vy = 0;
@@ -309,7 +332,8 @@ function buildV2(f: Omit<Forecast, "voiceoverText">): { lektor: Lektor; mapa: Ma
   // noc
   const byN = [...f.cities].sort((a, b) => a.tNight - b.tNight);
   const frost = f.cities.filter((c) => c.tNight <= 0).length;
-  const noc = `W nocy najzimniej ${loc(byN[0].name)} – ${tSay(byN[0].tNight)}` +
+  const nColds = f.cities.filter((c) => c.tNight === byN[0].tNight);
+  const noc = `W nocy najzimniej ${placeSay(nColds)} – ${tSay(byN[0].tNight)}` +
     (frost >= f.cities.length * 0.6 ? ", przymrozki w większości regionu." : frost ? "." : `, najcieplej ${loc(byN[byN.length - 1].name)} – ${tSay(byN[byN.length - 1].tNight)}.`);
   const ostrz = warningsSay(f.warnings);
 
@@ -326,6 +350,19 @@ function buildV2(f: Omit<Forecast, "voiceoverText">): { lektor: Lektor; mapa: Ma
       zjawisko,
       windDeg,
       windAvg: Math.round(windAvg),
+      // kamera leci do najcieplejszego / najzimniejszego miejsca, gdy lektor o nim mówi (ułamki nagrania „mapa”)
+      cele: (() => {
+        const out: { a: number; b: number; lat: number; lon: number; zoom: number; hi: "max" | "min" }[] = [];
+        const add = (needle: string, cs: { name: string }[], hi: "max" | "min") => {
+          const i = mapaText.indexOf(needle);
+          if (i < 0 || !cs.length) return;
+          const j = mapaText.indexOf(".", i) + 1 || mapaText.length;
+          out.push({ a: i / mapaText.length, b: j / mapaText.length, ...placeCam(cs), hi });
+        };
+        if (hot.tDay !== cold.tDay) { add("najcieplej", hots, "max"); add("Najchłodniej", colds, "min"); }
+        add("W nocy najzimniej", nColds, "min");
+        return out;
+      })(),
       // gdzie w powitaniu pada zdanie o sponsorze (ułamki nagrania powitania) – wtedy kamera zbliża się do sponsora
       sponsorFaza: (() => {
         const i = intro.indexOf("Sponsorem pogody");

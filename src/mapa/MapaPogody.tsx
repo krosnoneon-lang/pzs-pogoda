@@ -160,6 +160,8 @@ const layout = (items: Item[], last: Map<string, Place>, top: number, bottom: nu
       const s2 = Math.round(w * 0.46);
       base.push({ below: it.dol, dx: -s2 }, { below: it.dol, dx: s2 }, { below: !it.dol, dx: -s2 }, { below: !it.dol, dx: s2 });
     }
+    // główne miasta i max/min: raz wybrane miejsce chmurki zostaje na stałe (zero przeskoków)
+    if (prev && it.prio >= 70) { placed.push(rectOf(it.x, it.y, w, h, prev)); res.set(it.key, prev); continue; }
     const cands = prev ? [prev, ...base] : base;
     let ok: Place | null = null;
     const ovl = (a: Rect, b: Rect) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
@@ -174,7 +176,7 @@ const layout = (items: Item[], last: Map<string, Place>, top: number, bottom: nu
       if (it.prio < 70 && dots.some((d) => hit(d, r) && !(d.x0 === it.x - 8 && d.y0 === it.y - 8))) continue;
       ok = pl; break;
     }
-    if (!ok && it.prio >= 100) ok = cands[0]; // max / min zawsze widoczne (na wierzchu)
+    if (!ok && it.prio >= 70) ok = cands[0]; // główne miasta i max/min zawsze widoczne
     if (ok) placed.push(rectOf(it.x, it.y, w, h, ok));
     res.set(it.key, ok);
   }
@@ -262,6 +264,14 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
   const minD0 = Math.min(...cities.map((c) => c.tDay));
   const minD = minD0 === maxD ? Number.NaN : minD0;
   const minN = Math.min(...cities.map((c) => c.tNight));
+  /* wyróżnione max/min: przy remisie maks. 2 najważniejsze miejsca (duże miasta najpierw) */
+  const IMP = ["Rzeszów", "Krosno", "Przemyśl", "Tarnobrzeg", "Sanok", "Mielec", "Stalowa Wola", "Jasło", "Dębica", "Jarosław"];
+  const pick2 = (names: string[]) => new Set([...names].sort((a, b) => (IMP.indexOf(a) < 0 ? 99 : IMP.indexOf(a)) - (IMP.indexOf(b) < 0 ? 99 : IMP.indexOf(b))).slice(0, 2));
+  const hiMaxD = pick2(cities.filter((c) => c.tDay === maxD).map((c) => c.name));
+  const hiMinD = pick2(cities.filter((c) => c.tDay === minD).map((c) => c.name));
+  const hiMinN = pick2(cities.filter((c) => c.tNight === minN).map((c) => c.name));
+  const hiOf = (name: string, night: boolean): "max" | "min" | undefined =>
+    night ? (hiMinN.has(name) ? "min" : undefined) : hiMaxD.has(name) ? "max" : hiMinD.has(name) ? "min" : undefined;
 
   /* ---------- oś czasu sceny ----------
    * 0..introFr: powitanie (mapa już widoczna, kamera krąży, imieniny + słońce)
@@ -326,6 +336,8 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
     const hold = { t: (b) / (dur - 1), cam: { ...SPC, bearing: SPC.bearing - 8, zoom: SPC.zoom + 0.12 } };
     kfs.splice(2, 0, { t: Math.max(95, a - 32) / (dur - 1), cam: { ...OVERVIEW, zoom: OVERVIEW.zoom - 0.4, pitch: 34 } }, { t: a / (dur - 1), cam: SPC }, hold);
   }
+  /* plakietka sponsora: pokazywana na chwilę – wokół zdania o sponsorze (w rolce promo i bez zdania: cały czas) */
+  const pinO = (q: number) => (sf ? progress(q, iF(sf[0]) - 30, iF(sf[0]) - 12) * (1 - progress(q, iF(sf[1]) + 34, iF(sf[1]) + 52)) : progress(q, 14, 30));
   const spBoost = (q: number) => (sf ? progress(q, iF(sf[0]) - 6, iF(sf[0]) + 4) * (1 - progress(q, iF(sf[1]) + 10, iF(sf[1]) + 24)) : 0);
   const camOf = (q: number) => camAt(promo ? promo.kfs : kfs, Math.min(1, Math.max(0, q / Math.max(1, dur - 1))));
   /* ruch kamery: 0 = stoi, 1 = szybki przelot / zbliżanie. Podczas ruchu zostają tylko główne miasta
@@ -410,7 +422,7 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
       const keys: { key: string; lon: number; lat: number; prio: number; dol: boolean; vis: (q: number) => number }[] = [];
       for (const night of [false, true]) {
         cities.forEach((c, i) => {
-          const hi = night ? c.tNight === minN : c.tDay === maxD || c.tDay === minD;
+          const hi = !!hiOf(c.name, night);
           keys.push({
             key: `${night ? "n" : "d"}${i}`, lon: c.cfg!.lon, lat: c.cfg!.lat, prio: hi ? 100 : BIG.has(c.name) ? 70 : 50 - i * 0.1, dol: "dol" in c.cfg! && !!c.cfg!.dol,
             vis: (q) => { const ph = phasesP(q); const v = Math.min(1, Math.max(0, (night ? ph.noc : ph.dzien) * cities.length - i * 0.55)); return hi || BIG.has(c.name) ? v : v * (1 - motion(q)); },
@@ -450,7 +462,7 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
             items.push({ key: k.key, x: p.x, y: p.y, prio: k.prio, dol: k.dol, el, on: v > 0.01 && p.x > 0 && p.x < W && p.y > top && p.y < bottom });
           }
           const obst: Rect[] = [];
-          if (sp) { const q = tr.locationToScreenPoint(new maplibregl.LngLat(sp.lon, sp.lat), map.terrain ?? undefined); obst.push(pinBelow(sp) ? { x0: q.x - SPW / 2 - 6, y0: q.y - 8, x1: q.x + SPW / 2 + 6, y1: q.y + SPH + 16 } : { x0: q.x - SPW / 2 - 6, y0: q.y - SPH - 16, x1: q.x + SPW / 2 + 6, y1: q.y + 8 }); }
+          if (sp && pinO(q) > 0.05) { const q = tr.locationToScreenPoint(new maplibregl.LngLat(sp.lon, sp.lat), map.terrain ?? undefined); obst.push(pinBelow(sp) ? { x0: q.x - SPW / 2 - 6, y0: q.y - 8, x1: q.x + SPW / 2 + 6, y1: q.y + SPH + 16 } : { x0: q.x - SPW / 2 - 6, y0: q.y - SPH - 16, x1: q.x + SPW / 2 + 6, y1: q.y + 8 }); }
           for (const [kk, pl] of layout(items, last, top, bottom, obst)) out.set(kk, { pl });
         }
         layoutCache.current.set(q, out);
@@ -474,7 +486,7 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
         // znacznik gaśnie, gdy wjeżdża pod nagłówek / dolny pas albo poza kadr
         const yt = pinBelow(sp) ? q.y : q.y - SPH, yb = pinBelow(sp) ? q.y + SPH : q.y;
         const lim = Math.min(progress(yt, SAFE.top + 240, SAFE.top + 290), 1 - progress(yb, H - SAFE.bottom - 190, H - SAFE.bottom - 150), progress(q.x, 40, 90), 1 - progress(q.x, W - 90, W - 40));
-        spRef.current.style.opacity = (progress(frame, 14, 30) * lim).toFixed(3);
+        spRef.current.style.opacity = (pinO(frame) * lim).toFixed(3);
       }
       for (const k of keys) {
         const el = refs.current.get(k.key);
@@ -535,8 +547,8 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
         ))}
         {cities.map((c, i) => (
           <React.Fragment key={c.name}>
-            <Card ref={(el) => { if (el) refs.current.set(`d${i}`, el); }} name={c.name} kind={c.kind} t={c.tDay} wind={{ deg: c.windDeg ?? info.windDeg, v: c.wind }} hi={c.tDay === maxD ? "max" : c.tDay === minD ? "min" : undefined} dol={"dol" in c.cfg! && c.cfg!.dol} />
-            <Card ref={(el) => { if (el) refs.current.set(`n${i}`, el); }} name={c.name} kind="noc" t={c.tNight} hi={c.tNight === minN ? "min" : undefined} dol={"dol" in c.cfg! && c.cfg!.dol} />
+            <Card ref={(el) => { if (el) refs.current.set(`d${i}`, el); }} name={c.name} kind={c.kind} t={c.tDay} wind={{ deg: c.windDeg ?? info.windDeg, v: c.wind }} hi={hiOf(c.name, false)} dol={"dol" in c.cfg! && c.cfg!.dol} />
+            <Card ref={(el) => { if (el) refs.current.set(`n${i}`, el); }} name={c.name} kind="noc" t={c.tNight} hi={hiOf(c.name, true)} dol={"dol" in c.cfg! && c.cfg!.dol} />
           </React.Fragment>
         ))}
         {extras.map((c, i) => (

@@ -26,7 +26,8 @@ const GAP = 0.25; // przerwa między powitaniem a pogodą
 export const timeline2 = (f?: Partial<Forecast>) => {
   const s = f?.lektorSec ?? {};
   const INTRO_S = s.intro ? LEAD + s.intro + GAP : MAPA.intro;
-  const MAPA_S = s.mapa ? s.mapa + TAIL : MAPA.mapa;
+  const hasKlip = f?.endCard === "sponsor" && !!f?.sponsor?.klip;
+  const MAPA_S = s.mapa ? s.mapa + TAIL + (hasKlip ? 0.7 : 0) : MAPA.mapa; // z klipem: lektor kończy w całości przed klipem
   const MAP = sec(INTRO_S + MAPA_S);
   const INTRO_FR = sec(INTRO_S);
   const klip = f?.endCard === "sponsor" && f?.sponsor?.klip ? f.sponsor.klipSec ?? 3 : 0;

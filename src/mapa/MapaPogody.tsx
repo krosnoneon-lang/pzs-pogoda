@@ -328,6 +328,20 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
   }
   const spBoost = (q: number) => (sf ? progress(q, iF(sf[0]) - 6, iF(sf[0]) + 4) * (1 - progress(q, iF(sf[1]) + 10, iF(sf[1]) + 24)) : 0);
   const camOf = (q: number) => camAt(promo ? promo.kfs : kfs, Math.min(1, Math.max(0, q / Math.max(1, dur - 1))));
+  /* ruch kamery: 0 = stoi, 1 = szybki przelot / zbliżanie. Podczas ruchu zostają tylko główne miasta
+   * (Rzeszów, Krosno, Przemyśl, Tarnobrzeg) i wyróżnione max/min – reszta chmurek gaśnie i wraca, gdy kamera zwolni. */
+  const speedAt = (q: number) => {
+    const a = camOf(q - 4), b = camOf(q + 4);
+    const sc = Math.pow(2, (a.zoom + b.zoom) / 2 - 7);
+    const dpos = Math.hypot((b.lng - a.lng) * 0.65, b.lat - a.lat) * sc;
+    return Math.abs(b.zoom - a.zoom) * 1.6 + dpos * 2.2 + Math.abs(b.bearing - a.bearing) / 40;
+  };
+  const motion = (q: number) => {
+    // maks. z okna ±8 klatek, żeby chmurki nie mrugały przy krótkich zmianach prędkości
+    let m = 0;
+    for (let k = -8; k <= 8; k += 4) m = Math.max(m, progress(speedAt(q + k), 0.05, 0.14));
+    return m;
+  };
   const cam = camOf(frame);
 
   /* ---------- mapa ---------- */
@@ -399,11 +413,11 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
           const hi = night ? c.tNight === minN : c.tDay === maxD || c.tDay === minD;
           keys.push({
             key: `${night ? "n" : "d"}${i}`, lon: c.cfg!.lon, lat: c.cfg!.lat, prio: hi ? 100 : BIG.has(c.name) ? 70 : 50 - i * 0.1, dol: "dol" in c.cfg! && !!c.cfg!.dol,
-            vis: (q) => { const ph = phasesP(q); return Math.min(1, Math.max(0, (night ? ph.noc : ph.dzien) * cities.length - i * 0.55)); },
+            vis: (q) => { const ph = phasesP(q); const v = Math.min(1, Math.max(0, (night ? ph.noc : ph.dzien) * cities.length - i * 0.55)); return hi || BIG.has(c.name) ? v : v * (1 - motion(q)); },
           });
         });
       }
-      extras.forEach((c, i) => keys.push({ key: `x${i}`, lon: c.cfg!.lon, lat: c.cfg!.lat, prio: 10 - i * 0.1, dol: false, vis: (q) => { const ph = phasesP(q); return ph.fx * (1 - ph.noc); } }));
+      extras.forEach((c, i) => keys.push({ key: `x${i}`, lon: c.cfg!.lon, lat: c.cfg!.lat, prio: 10 - i * 0.1, dol: false, vis: (q) => { const ph = phasesP(q); return ph.fx * (1 - ph.noc) * (1 - motion(q)); } }));
       const tr0 = (map as unknown as { transform: { clone(): any } }).transform;
       /* układ liczony po kolei od klatki 0: każdy krok najpierw próbuje zostawić chmurkę tam, gdzie była.
        * Deterministyczny (nie zależy od kolejności renderu), a chmurki zmieniają stronę tylko gdy muszą. */

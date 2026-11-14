@@ -1,8 +1,40 @@
 {
   "sponsorzy": [
-    { "id": "grono", "nazwa": "Restauracja Grono", "lektor": "Restauracja Grono w Wyżnem", "logo": "sponsorzy/grono.png", "lat": 49.9266875, "lon": 21.8866875, "podpis": "Wyżne 349B", "haslo": "przy Winnicy Maria Anna", "aktywny": true }
+    {
+      "id": "grono",
+      "nazwa": "Restauracja Grono",
+      "lektor": "Restauracja Grono w Wyżnem",
+      "logo": "sponsorzy/grono.png",
+      "lat": 49.9266875,
+      "lon": 21.8866875,
+      "podpis": "Wyżne 349B",
+      "haslo": "przy Winnicy Maria Anna",
+      "aktywny": true
+    },
+    {
+      "id": "wedzarnia",
+      "nazwa": "Stara Wędzarnia",
+      "lektor": "Stara Wędzarnia z Frysztaka",
+      "logo": "sponsorzy/wedzarnia.png",
+      "lat": 49.840806,
+      "lon": 21.5916625,
+      "podpis": "Frysztak, ul. Wybickiego 36",
+      "haslo": "Domowy smak, który pamiętasz z dzieciństwa",
+      "pozegnanie": "Dobrej pogody życzy Stara Wędzarnia – domowy smak, który pamiętasz z dzieciństwa!",
+      "klip": "sponsorzy/wedzarnia.mp4",
+      "aktywny": true
+    }
   ],
   "harmonogram": [
-    { "od": "2026-11-13", "do": "2026-12-31", "id": "grono" }
+    {
+      "od": "2026-11-15",
+      "do": "2026-11-15",
+      "id": "wedzarnia"
+    },
+    {
+      "od": "2026-11-13",
+      "do": "2026-12-31",
+      "id": "grono"
+    }
   ]
 }

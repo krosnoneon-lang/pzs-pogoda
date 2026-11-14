@@ -60,7 +60,7 @@ export type Forecast = {
   /** miejscowości widoczne tylko na zbliżeniu mapy */
   extra?: CityForecast[];
   /** sponsor pogody na dziś (scripts/sponsor.ts); brak = bez sponsora */
-  sponsor?: { id: string; nazwa: string; lektor: string; logo?: string; lat: number; lon: number; podpis?: string; haslo?: string } | null;
+  sponsor?: { id: string; nazwa: string; lektor: string; logo?: string; lat: number; lon: number; podpis?: string; haslo?: string; pozegnanie?: string; klip?: string; klipSec?: number } | null;
   /** tło całego ekranu */
   background: WeatherKind;
   sunrise: string; // "06:41"

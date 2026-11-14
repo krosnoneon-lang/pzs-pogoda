@@ -20,6 +20,11 @@ export type Sponsor = {
   lon: number;
   podpis?: string;
   haslo?: string;
+  /** zdanie lektora na koniec prognozy, np. „Dobrej pogody życzy …” */
+  pozegnanie?: string;
+  /** klip na koniec zamiast planszy (mp4) – ścieżka w public/ albo link do Dysku */
+  klip?: string;
+  klipSec?: number;
   aktywny: boolean;
 };
 type Wpis = { od: string; do: string; id: string };
@@ -74,7 +79,7 @@ async function fromSheet(id: string): Promise<{ sponsorzy: Sponsor[]; harmonogra
   for (const r of await get("Sponsorzy")) {
     const c = coords(r[4] ?? "");
     if (!r[0]?.trim() || !c) continue;
-    sponsorzy.push({ id: r[0].trim(), nazwa: r[1]?.trim() || r[0].trim(), lektor: r[2]?.trim() || r[1]?.trim() || r[0].trim(), logo: r[3]?.trim() || undefined, lat: c[0], lon: c[1], podpis: r[5]?.trim() || undefined, haslo: r[6]?.trim() || undefined, aktywny: (r[7] ?? "").trim().toUpperCase() !== "NIE" });
+    sponsorzy.push({ id: r[0].trim(), nazwa: r[1]?.trim() || r[0].trim(), lektor: r[2]?.trim() || r[1]?.trim() || r[0].trim(), logo: r[3]?.trim() || undefined, lat: c[0], lon: c[1], podpis: r[5]?.trim() || undefined, haslo: r[6]?.trim() || undefined, aktywny: (r[7] ?? "").trim().toUpperCase() !== "NIE", pozegnanie: r[8]?.trim() || undefined, klip: r[9]?.trim() || undefined });
   }
   const harmonogram = (await get("Harmonogram")).filter((r) => r[0] && r[2]).map((r) => ({ od: normDate(r[0]), do: normDate(r[1] || r[0]), id: r[2].trim() }));
   return { sponsorzy, harmonogram };
@@ -114,7 +119,20 @@ export async function pickSponsor(date = DATE): Promise<Sponsor | null> {
   if (!wpis) return null;
   const s = src.sponsorzy.find((x) => x.id === wpis.id)!;
   const local = ["png", "svg", "jpg"].map((e) => `sponsorzy/${s.id}.${e}`).find((f) => fs.existsSync(path.join(root, f)));
-  return { ...s, logo: (await logo(s).catch(() => undefined)) ?? local };
+  const out: Sponsor = { ...s, logo: (await logo(s).catch(() => undefined)) ?? local };
+  // klip na koniec: plik w repo (sponsorzy/<id>.mp4) albo link do Dysku
+  let klip: string | undefined = s.klip && !/^https?:/.test(s.klip) && fs.existsSync(path.join(root, s.klip)) ? s.klip : undefined;
+  if (!klip && s.klip && /^https?:/.test(s.klip)) {
+    const id = driveId(s.klip);
+    const r = await fetch(id ? `https://drive.google.com/uc?export=download&id=${id}` : s.klip).catch(() => null);
+    if (r?.ok && (r.headers.get("content-type") ?? "").startsWith("video/")) { fs.writeFileSync(path.join(root, "data/sponsor-klip.mp4"), Buffer.from(await r.arrayBuffer())); klip = "data/sponsor-klip.mp4"; }
+  }
+  if (!klip && fs.existsSync(path.join(root, `sponsorzy/${s.id}.mp4`))) klip = `sponsorzy/${s.id}.mp4`;
+  out.klip = klip;
+  if (klip) {
+    try { out.klipSec = Number(require("node:child_process").execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${path.join(root, klip)}"`).toString().trim()) || 3; } catch { out.klipSec = 3; }
+  }
+  return out;
 }
 
 if (process.argv[1]?.includes("sponsor")) {

@@ -342,7 +342,7 @@ function buildV2(f: Omit<Forecast, "voiceoverText">): { lektor: Lektor; mapa: Ma
   const total = segs.reduce((a, x) => a + x.length, 0) + (zjawisko ? 0 : opady.length);
   const l0 = (segs[0].length + (zjawisko ? 0 : opady.length)) / total;
   const l1 = segs[1].length / total;
-  const mapaText = zjawisko ? `${segs[0]} ${opady} ${segs[2]}` : `${segs[0]} ${opady} ${segs[2]}`;
+  const mapaText = `${segs[0]} ${opady} ${segs[2]}` + (f.sponsor?.pozegnanie ? ` ${f.sponsor.pozegnanie.trim().replace(/([^.!?])$/, "$1.")}` : "");
   return {
     // myśl dnia wyłączona – w to miejsce wejdzie kiedyś reklama
     lektor: { intro, mapa: mapaText },

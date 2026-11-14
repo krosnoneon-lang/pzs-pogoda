@@ -6,7 +6,7 @@
  * Każda część trwa tyle, ile lektor mówi (osobne nagrania), ale nie krócej niż minimum.
  */
 import React from "react";
-import { AbsoluteFill, Audio, Sequence, interpolate, staticFile, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Audio, OffthreadVideo, Sequence, interpolate, staticFile, useCurrentFrame } from "remotion";
 import { ALL_CARDS, BACKGROUNDS, COLORS, FONT_FAMILY, FPS, MAPA, MUSIC, PROJECT_CARDS, TIMING, VOICEOVER } from "./config";
 import type { Forecast } from "./types";
 import { EndCardView } from "./Prognoza";
@@ -29,7 +29,8 @@ export const timeline2 = (f?: Partial<Forecast>) => {
   const MAPA_S = s.mapa ? s.mapa + TAIL : MAPA.mapa;
   const MAP = sec(INTRO_S + MAPA_S);
   const INTRO_FR = sec(INTRO_S);
-  const END = Math.max(sec(TIMING.endCard), f?.ctaSec ? sec(VOICEOVER.ctaStartAt + f.ctaSec + 1.2) : 0);
+  const klip = f?.endCard === "sponsor" && f?.sponsor?.klip ? f.sponsor.klipSec ?? 3 : 0;
+  const END = klip ? sec(klip) : Math.max(sec(TIMING.endCard), f?.ctaSec ? sec(VOICEOVER.ctaStartAt + f.ctaSec + 1.2) : 0);
   const END_FROM = MAP - XF;
   return { MAP, INTRO_FR, END, END_FROM, TOTAL: END_FROM + END };
 };
@@ -62,7 +63,12 @@ export const PrognozaMapa: React.FC<Forecast> = (f) => {
       </Sequence>
       <Sequence from={T.END_FROM} name="plansza-koncowa">
         <AbsoluteFill style={{ opacity: fadeIn(T.END_FROM) }}>
-          <EndCardView card={card} bg={bg} duck={!!f.cta} />
+          {f.endCard === "sponsor" && f.sponsor?.klip ? (
+            // klip sponsora (np. animowane logo) zamiast planszy końcowej
+            <OffthreadVideo src={staticFile(f.sponsor.klip)} volume={0.9} />
+          ) : (
+            <EndCardView card={card} bg={bg} duck={!!f.cta} />
+          )}
         </AbsoluteFill>
       </Sequence>
       {f.source.startsWith("DANE TESTOWE") && (

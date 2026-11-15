@@ -430,17 +430,17 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
        * a wynik nie zależy od kolejności renderowania klatek. */
       const STEP = 12;
       const top = SAFE.top + 250, bottom = promo ? H - 660 : H - SAFE.bottom - 150;
-      const keys: { key: string; lon: number; lat: number; prio: number; dol: boolean; vis: (q: number) => number }[] = [];
+      const keys: { key: string; lon: number; lat: number; prio: number; dol: boolean; vis: (q: number) => number; core: boolean }[] = [];
       for (const night of [false, true]) {
         cities.forEach((c, i) => {
           const hi = !!hiOf(c.name, night);
           keys.push({
             key: `${night ? "n" : "d"}${i}`, lon: c.cfg!.lon, lat: c.cfg!.lat, prio: hi ? 100 : BIG.has(c.name) ? 70 : 50 - i * 0.1, dol: "dol" in c.cfg! && !!c.cfg!.dol,
-            vis: (q) => { const ph = phasesP(q); const v = Math.min(1, Math.max(0, (night ? ph.noc : ph.dzien) * cities.length - i * 0.55)); return hi || BIG.has(c.name) ? v : v * (1 - motion(q)); },
+            vis: (q) => { const ph = phasesP(q); const v = Math.min(1, Math.max(0, (night ? ph.noc : ph.dzien) * cities.length - i * 0.55)); return v; }, core: hi || BIG.has(c.name),
           });
         });
       }
-      extras.forEach((c, i) => keys.push({ key: `x${i}`, lon: c.cfg!.lon, lat: c.cfg!.lat, prio: 10 - i * 0.1, dol: false, vis: (q) => { const ph = phasesP(q); return ph.fx * (1 - ph.noc) * (1 - motion(q)); } }));
+      extras.forEach((c, i) => keys.push({ key: `x${i}`, lon: c.cfg!.lon, lat: c.cfg!.lat, prio: 10 - i * 0.1, dol: false, vis: (q) => { const ph = phasesP(q); return ph.fx * (1 - ph.noc); }, core: false }));
       const tr0 = (map as unknown as { transform: { clone(): any } }).transform;
       /* układ liczony po kolei od klatki 0: każdy krok najpierw próbuje zostawić chmurkę tam, gdzie była.
        * Deterministyczny (nie zależy od kolejności renderu), a chmurki zmieniają stronę tylko gdy muszą. */
@@ -470,7 +470,9 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
             if (!el) continue;
             const p = tr.locationToScreenPoint(new maplibregl.LngLat(k.lon, k.lat), map.terrain ?? undefined);
             const v = k.vis(q);
-            items.push({ key: k.key, x: p.x, y: p.y, prio: k.prio, dol: k.dol, el, on: v > 0.01 && p.x > 0 && p.x < W && p.y > top && p.y < bottom });
+            // ruch kamery blokuje tylko POJAWIANIE się nowych chmurek; te już widoczne zostają podczas ruchu
+            const allowed = k.core || last.has(k.key) || motion(q) < 0.5;
+            items.push({ key: k.key, x: p.x, y: p.y, prio: k.prio, dol: k.dol, el, on: allowed && v > 0.01 && p.x > 0 && p.x < W && p.y > top && p.y < bottom });
           }
           const obst: Rect[] = [];
           if (sp && pinO(q) > 0.05) { const q = tr.locationToScreenPoint(new maplibregl.LngLat(sp.lon, sp.lat), map.terrain ?? undefined); obst.push(pinBelow(sp) ? { x0: q.x - SPW / 2 - 6, y0: q.y - 8, x1: q.x + SPW / 2 + 6, y1: q.y + SPH + 16 } : { x0: q.x - SPW / 2 - 6, y0: q.y - SPH - 16, x1: q.x + SPW / 2 + 6, y1: q.y + 8 }); }

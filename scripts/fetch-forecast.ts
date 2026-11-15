@@ -441,9 +441,10 @@ function warningsSay(ws: Warning[]): string {
   const where = (rs: string[]) => (rs.length === allRegs.length ? "w całym regionie" : rs.map((r) => REGION_LOC[r]).join(rs.length > 2 ? ", " : " i ").replace(/, ([^,]*)$/, " i $1"));
   const items = [...groups.entries()].map(([l, rs]) => `${where(rs)} przed ${l}`);
   const hs = [...hours].filter(Boolean);
-  const kiedy = hs.length === 1 && hours.size === 1 ? ` do ${timeGen(hs[0])}` : "";
+  // godzina na końcu, osobnym zdaniem – krótsze zdania lektor czyta pewniej
+  const kiedy = hs.length === 1 && hours.size === 1 ? ` ${items.length > 1 ? "Ostrzeżenia obowiązują" : "Ostrzeżenie obowiązuje"} do ${timeGen(hs[0])}.` : "";
   const txt = items.length > 1 ? items.slice(0, -1).join(", ") + ", a " + items[items.length - 1] : items[0];
-  return ` Uwaga,${kiedy} IMGW ostrzega ${txt}.`;
+  return ` Uwaga! IMGW ostrzega ${txt}.${kiedy}`;
 }
 
 function mock(scenario: string): { cities: CityForecast[]; warnings: Warning[]; extra: CityForecast[] } {

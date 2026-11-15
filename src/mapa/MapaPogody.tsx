@@ -136,12 +136,12 @@ type Rect = { x0: number; y0: number; x1: number; y1: number };
 type Place = { below: boolean; dx: number };
 const hit = (a: Rect, b: Rect) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
 const STEM = 17;
-const rectOf = (x: number, y: number, w: number, h: number, pl: Place): Rect => {
-  const x0 = x - w / 2 + pl.dx;
+const rectOf = (x: number, y: number, w: number, h: number, pl: Place, k = 1): Rect => {
+  const x0 = x - w / 2 + pl.dx * k;
   return pl.below ? { x0, y0: y, x1: x0 + w, y1: y + h + STEM } : { x0, y0: y - h - STEM, x1: x0 + w, y1: y };
 };
 type Item = { key: string; x: number; y: number; prio: number; dol: boolean; el: HTMLDivElement; on: boolean };
-const layout = (items: Item[], last: Map<string, Place>, top: number, bottom: number, obst: Rect[] = []): Map<string, Place | null> => {
+const layout = (items: Item[], last: Map<string, Place>, top: number, bottom: number, obst: Rect[] = [], k = 1): Map<string, Place | null> => {
   const res = new Map<string, Place | null>();
   const placed: Rect[] = [...obst];
   // kropki miejscowości też są przeszkodą (chmurka nie zasłania innej miejscowości)
@@ -149,24 +149,29 @@ const layout = (items: Item[], last: Map<string, Place>, top: number, bottom: nu
   for (const it of [...items].sort((a, b) => b.prio - a.prio)) {
     if (!it.on) { res.set(it.key, null); continue; }
     const bub = it.el.querySelector("[data-bub]") as HTMLElement;
-    const w = bub.offsetWidth, h = bub.offsetHeight;
+    const w = bub.offsetWidth * k, h = bub.offsetHeight * k;
     const prev = last.get(it.key);
-    const s = Math.round(w * 0.38);
+    const s = Math.round((w / k) * 0.38);
     const base: Place[] = [
       { below: it.dol, dx: 0 }, { below: !it.dol, dx: 0 },
       { below: it.dol, dx: -s }, { below: it.dol, dx: s }, { below: !it.dol, dx: -s }, { below: !it.dol, dx: s },
     ];
     if (it.prio >= 70) {
-      const s2 = Math.round(w * 0.46);
-      base.push({ below: it.dol, dx: -s2 }, { below: it.dol, dx: s2 }, { below: !it.dol, dx: -s2 }, { below: !it.dol, dx: s2 });
+      const s2 = Math.round((w / k) * 0.46);
+      const s3 = Math.round((w / k) * 0.75);
+      base.push({ below: it.dol, dx: -s2 }, { below: it.dol, dx: s2 }, { below: !it.dol, dx: -s2 }, { below: !it.dol, dx: s2 }, { below: it.dol, dx: -s3 }, { below: it.dol, dx: s3 });
     }
     // główne miasta i max/min: raz wybrane miejsce chmurki zostaje na stałe (zero przeskoków)
-    if (prev && it.prio >= 70) { placed.push(rectOf(it.x, it.y, w, h, prev)); res.set(it.key, prev); continue; }
+    if (prev && it.prio >= 70) {
+      const r0 = rectOf(it.x, it.y, w, h, prev, k);
+      // stałe miejsce – chyba że chmurka wyjechałaby za krawędź ekranu
+      if (r0.x0 >= 4 && r0.x1 <= W - 4) { placed.push(r0); res.set(it.key, prev); continue; }
+    }
     const cands = prev ? [prev, ...base] : base;
     let ok: Place | null = null;
     const ovl = (a: Rect, b: Rect) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
     for (const pl of cands) {
-      const r = rectOf(it.x, it.y, w, h, pl);
+      const r = rectOf(it.x, it.y, w, h, pl, k);
       const isPrev = !!prev && pl === prev;
       // poprzednie miejsce: tolerujemy margines ekranu i lekkie zachodzenie (≤12%), żeby chmurka nie skakała
       const m = isPrev ? 20 : 0;
@@ -176,8 +181,12 @@ const layout = (items: Item[], last: Map<string, Place>, top: number, bottom: nu
       if (it.prio < 70 && dots.some((d) => hit(d, r) && !(d.x0 === it.x - 8 && d.y0 === it.y - 8))) continue;
       ok = pl; break;
     }
-    if (!ok && it.prio >= 70) ok = cands[0]; // główne miasta i max/min zawsze widoczne
-    if (ok) placed.push(rectOf(it.x, it.y, w, h, ok));
+    if (!ok && it.prio >= 70) {
+      // główne miasta i max/min zawsze widoczne: wybierz wariant, który najmniej wystaje poza ekran
+      const outBy = (pl: Place) => { const r = rectOf(it.x, it.y, w, h, pl, k); return Math.max(0, 4 - r.x0) + Math.max(0, r.x1 - (W - 4)); };
+      ok = [...cands].sort((a, b) => outBy(a) - outBy(b))[0];
+    }
+    if (ok) placed.push(rectOf(it.x, it.y, w, h, ok, k));
     res.set(it.key, ok);
   }
   return res;
@@ -348,10 +357,12 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
     const dpos = Math.hypot((b.lng - a.lng) * 0.65, b.lat - a.lat) * sc;
     return Math.abs(b.zoom - a.zoom) * 1.6 + dpos * 2.2 + Math.abs(b.bearing - a.bearing) / 40;
   };
+  /** chmurki rosną na zbliżeniach (do ok. wielkości plakietki sponsora) */
+  const cardScale = (zoom: number) => Math.min(1.7, Math.max(1, 1 + (zoom - OVERVIEW.zoom) * 0.28));
   const motion = (q: number) => {
     // maks. z okna ±8 klatek, żeby chmurki nie mrugały przy krótkich zmianach prędkości
     let m = 0;
-    for (let k = -8; k <= 8; k += 4) m = Math.max(m, progress(speedAt(q + k), 0.05, 0.14));
+    for (let k = -14; k <= 14; k += 7) m = Math.max(m, progress(speedAt(q + k), 0.05, 0.14));
     return m;
   };
   const cam = camOf(frame);
@@ -463,13 +474,17 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
           }
           const obst: Rect[] = [];
           if (sp && pinO(q) > 0.05) { const q = tr.locationToScreenPoint(new maplibregl.LngLat(sp.lon, sp.lat), map.terrain ?? undefined); obst.push(pinBelow(sp) ? { x0: q.x - SPW / 2 - 6, y0: q.y - 8, x1: q.x + SPW / 2 + 6, y1: q.y + SPH + 16 } : { x0: q.x - SPW / 2 - 6, y0: q.y - SPH - 16, x1: q.x + SPW / 2 + 6, y1: q.y + 8 }); }
-          for (const [kk, pl] of layout(items, last, top, bottom, obst)) out.set(kk, { pl });
+          for (const [kk, pl] of layout(items, last, top, bottom, obst, cardScale(c.zoom))) out.set(kk, { pl });
         }
         layoutCache.current.set(q, out);
         return out;
       };
       const q0 = Math.floor(frame / STEP) * STEP, q1 = q0 + STEP;
       const L0 = layoutAt(q0), L1 = layoutAt(q1);
+      // anty-mruganie: zwykła chmurka pokazuje się tylko, gdy ma miejsce w 3 kolejnych krokach (~1,2 s)
+      const Lm = q0 - STEP >= 0 ? layoutAt(q0 - STEP) : L0, Lp = layoutAt(q1 + STEP);
+      const stable = (key: string, prio: number, A: typeof L0, B: typeof L0, C: typeof L0) =>
+        prio >= 70 ? B.get(key)?.pl ?? null : A.get(key)?.pl && B.get(key)?.pl && C.get(key)?.pl ? B.get(key)!.pl : null;
       const a = (frame - q0) / STEP;
       const e = a * a * (3 - 2 * a);
       GEO_LABELS.forEach((g, i) => {
@@ -492,8 +507,9 @@ export const MapaPogody: React.FC<{ f: Forecast; dur: number; introFr: number; p
         const el = refs.current.get(k.key);
         if (!el) continue;
         const p = map.project([k.lon, k.lat]);
-        el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
-        const p0 = L0.get(k.key)?.pl ?? null, p1 = L1.get(k.key)?.pl ?? null;
+        el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) scale(${cardScale(map.getZoom()).toFixed(3)})`;
+        el.style.transformOrigin = "0 0";
+        const p0 = stable(k.key, k.prio, Lm, L0, L1), p1 = stable(k.key, k.prio, L0, L1, Lp);
         const shown = (p0 ? 1 - e : 0) + (p1 ? e : 0);
         let pl: Place | null = p0 && p1 ? (p0.below === p1.below ? { below: p0.below, dx: p0.dx + (p1.dx - p0.dx) * e } : e < 0.5 ? p0 : p1) : p0 ?? p1;
         // przy zmianie strony (góra/dół) chmurka gaśnie i zapala się po drugiej stronie

@@ -23,9 +23,31 @@
       "pozegnanie": "Dobrej pogody życzy Stara Wędzarnia – domowy smak, który pamiętasz z dzieciństwa!",
       "klip": "sponsorzy/wedzarnia.mp4",
       "aktywny": true
+    },
+    {
+      "id": "folkowa",
+      "nazwa": "Folkowa Dolina",
+      "lektor": "Folkowa Dolina",
+      "logo": "sponsorzy/folkowa.png",
+      "lat": 50.0223233,
+      "lon": 21.4364354,
+      "podpis": "Dębica, ul. Zdrojowa 51",
+      "haslo": "Twoje miejsce na wyjątkową imprezę",
+      "pozegnanie": "Sponsorem prognozy pogody jest Folkowa Dolina – twoje miejsce na wyjątkową imprezę!",
+      "slajdy": [
+        "sponsorzy/folkowa-1.png",
+        "sponsorzy/folkowa-2.png",
+        "sponsorzy/folkowa-3.png"
+      ],
+      "aktywny": true
     }
   ],
   "harmonogram": [
+    {
+      "od": "2026-11-16",
+      "do": "2026-11-16",
+      "id": "folkowa"
+    },
     {
       "od": "2026-11-15",
       "do": "2026-11-15",

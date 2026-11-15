@@ -25,6 +25,8 @@ export type Sponsor = {
   /** klip na koniec zamiast planszy (mp4) – ścieżka w public/ albo link do Dysku */
   klip?: string;
   klipSec?: number;
+  /** zdjęcia na koniec (pełny ekran 9:16), ostatnie z logo */
+  slajdy?: string[];
   aktywny: boolean;
 };
 type Wpis = { od: string; do: string; id: string };
@@ -129,6 +131,8 @@ export async function pickSponsor(date = DATE): Promise<Sponsor | null> {
   }
   if (!klip && fs.existsSync(path.join(root, `sponsorzy/${s.id}.mp4`))) klip = `sponsorzy/${s.id}.mp4`;
   out.klip = klip;
+  out.slajdy = s.slajdy?.filter((x) => fs.existsSync(path.join(root, x)));
+  if (!out.slajdy?.length) delete out.slajdy;
   if (klip) {
     try { out.klipSec = Number(require("node:child_process").execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${path.join(root, klip)}"`).toString().trim()) || 3; } catch { out.klipSec = 3; }
   }

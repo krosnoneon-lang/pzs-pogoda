@@ -38,6 +38,8 @@ export type MapaInfo = {
   windAvg: number;
   /** podział czasu sceny mapy (ułamki 0..1) wg długości zdań lektora */
   sponsorFaza?: [number, number] | null;
+  /** gdzie w nagraniu „mapa” zaczyna się pożegnanie sponsora (ułamek) */
+  pozegnanieFaza?: number | null;
   cele?: { a: number; b: number; lat: number; lon: number; zoom: number; hi: "max" | "min" }[];
   fazy: { dzien: [number, number]; zjawisko: [number, number] | null; noc: [number, number] };
 };
@@ -60,7 +62,7 @@ export type Forecast = {
   /** miejscowości widoczne tylko na zbliżeniu mapy */
   extra?: CityForecast[];
   /** sponsor pogody na dziś (scripts/sponsor.ts); brak = bez sponsora */
-  sponsor?: { id: string; nazwa: string; lektor: string; logo?: string; lat: number; lon: number; podpis?: string; haslo?: string; pozegnanie?: string; klip?: string; klipSec?: number } | null;
+  sponsor?: { id: string; nazwa: string; lektor: string; logo?: string; lat: number; lon: number; podpis?: string; haslo?: string; pozegnanie?: string; klip?: string; klipSec?: number; slajdy?: string[] } | null;
   /** tło całego ekranu */
   background: WeatherKind;
   sunrise: string; // "06:41"

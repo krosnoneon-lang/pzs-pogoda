@@ -363,6 +363,10 @@ function buildV2(f: Omit<Forecast, "voiceoverText">): { lektor: Lektor; mapa: Ma
         add("W nocy najzimniej", nColds, "min");
         return out;
       })(),
+      pozegnanieFaza: (() => {
+        const p = f.sponsor?.pozegnanie ? mapaText.lastIndexOf(f.sponsor.pozegnanie.trim().slice(0, 20)) : -1;
+        return p < 0 ? null : p / mapaText.length;
+      })(),
       // gdzie w powitaniu pada zdanie o sponsorze (ułamki nagrania powitania) – wtedy kamera zbliża się do sponsora
       sponsorFaza: (() => {
         const i = intro.indexOf("Sponsorem pogody");

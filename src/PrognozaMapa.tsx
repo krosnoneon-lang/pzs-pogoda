@@ -6,7 +6,7 @@
  * Każda część trwa tyle, ile lektor mówi (osobne nagrania), ale nie krócej niż minimum.
  */
 import React from "react";
-import { AbsoluteFill, Audio, OffthreadVideo, Sequence, interpolate, staticFile, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Audio, Img, OffthreadVideo, Sequence, interpolate, staticFile, useCurrentFrame } from "remotion";
 import { ALL_CARDS, BACKGROUNDS, COLORS, FONT_FAMILY, FPS, MAPA, MUSIC, PROJECT_CARDS, TIMING, VOICEOVER } from "./config";
 import type { Forecast } from "./types";
 import { EndCardView } from "./Prognoza";
@@ -32,11 +32,62 @@ export const timeline2 = (f?: Partial<Forecast>) => {
   const INTRO_FR = sec(INTRO_S);
   const klip = f?.endCard === "sponsor" && f?.sponsor?.klip ? f.sponsor.klipSec ?? 3 : 0;
   const END = klip ? sec(klip) : Math.max(sec(TIMING.endCard), f?.ctaSec ? sec(VOICEOVER.ctaStartAt + f.ctaSec + 1.2) : 0);
-  const END_FROM = MAP - XF;
-  return { MAP, INTRO_FR, END, END_FROM, TOTAL: END_FROM + END };
+  let END_FROM = MAP - XF;
+  let endLen = END;
+  // slajdy sponsora: wchodzą razem z pożegnaniem lektora, ostatni (z logo) trwa do końca + 1,5 s
+  const pf = f?.mapa?.pozegnanieFaza;
+  if (f?.endCard === "sponsor" && f?.sponsor?.slajdy?.length && s.mapa && pf != null) {
+    END_FROM = INTRO_FR + sec(s.mapa * pf) - 6;
+    const voiceEnd = INTRO_FR + sec(s.mapa);
+    endLen = Math.max(sec(5.5), voiceEnd - END_FROM + sec(1.6));
+  }
+  return { MAP, INTRO_FR, END: endLen, END_FROM, TOTAL: END_FROM + endLen };
 };
 
 const text: React.CSSProperties = { fontFamily: FONT_FAMILY, color: COLORS.white };
+
+/** zakończenie sponsora: szybkie zdjęcia pełnoekranowe (Ken Burns), ostatnie dłuższe z logo i hasłem */
+const SponsorSlajdy: React.FC<{ s: NonNullable<Forecast["sponsor"]>; dur: number }> = ({ s, dur }) => {
+  const frame = useCurrentFrame();
+  const imgs = s.slajdy!;
+  const FAST = 26; // ~0,9 s na szybki slajd
+  const lastFrom = FAST * (imgs.length - 1);
+  return (
+    <AbsoluteFill style={{ background: "#000" }}>
+      {imgs.map((src, i) => {
+        const from = i * FAST;
+        const to = i === imgs.length - 1 ? dur : from + FAST + 6;
+        if (frame < from - 1 || frame > to) return null;
+        const local = frame - from;
+        const len = to - from;
+        const o = Math.min(interpolate(local, [0, 6], [0, 1], clamp), i === imgs.length - 1 ? 1 : interpolate(local, [len - 6, len], [1, 0], clamp));
+        const z = interpolate(local, [0, len], [1.12, 1.0], clamp);
+        const dx = interpolate(local, [0, len], [i % 2 ? -30 : 30, 0], clamp);
+        return (
+          <AbsoluteFill key={src} style={{ opacity: o }}>
+            <Img src={staticFile(src)} style={{ width: "100%", height: "100%", objectFit: "cover", transform: `scale(${z}) translateX(${dx}px)` }} />
+          </AbsoluteFill>
+        );
+      })}
+      {/* ostatni slajd: przyciemnienie od dołu, logo i hasło */}
+      {(() => {
+        const l = frame - lastFrom - 8;
+        const o = interpolate(l, [0, 12], [0, 1], clamp);
+        const sc = interpolate(l, [0, 14], [0.85, 1], clamp);
+        return (
+          <AbsoluteFill style={{ opacity: o }}>
+            <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,0.78) 72%, rgba(0,0,0,0.9) 100%)" }} />
+            <div style={{ position: "absolute", left: 80, right: 80, bottom: 420, display: "flex", flexDirection: "column", alignItems: "center", gap: 18, transform: `scale(${sc})` }}>
+              {s.logo ? <Img src={staticFile(s.logo)} style={{ width: 560, height: 420, objectFit: "contain", filter: "drop-shadow(0 8px 30px rgba(0,0,0,0.7))" }} /> : null}
+              <div style={{ ...text, fontWeight: 800, fontSize: 26, letterSpacing: 6, color: "#FFD23F" }}>SPONSOR PROGNOZY POGODY</div>
+              {s.haslo ? <div style={{ ...text, fontWeight: 900, fontSize: 46, textAlign: "center", lineHeight: 1.1, textShadow: "0 3px 16px #000" }}>{s.haslo}</div> : null}
+            </div>
+          </AbsoluteFill>
+        );
+      })()}
+    </AbsoluteFill>
+  );
+};
 
 export const PrognozaMapa: React.FC<Forecast> = (f) => {
   const frame = useCurrentFrame();
@@ -64,7 +115,9 @@ export const PrognozaMapa: React.FC<Forecast> = (f) => {
       </Sequence>
       <Sequence from={T.END_FROM} name="plansza-koncowa">
         <AbsoluteFill style={{ opacity: fadeIn(T.END_FROM) }}>
-          {f.endCard === "sponsor" && f.sponsor?.klip ? (
+          {f.endCard === "sponsor" && f.sponsor?.slajdy?.length ? (
+            <SponsorSlajdy s={f.sponsor} dur={T.END} />
+          ) : f.endCard === "sponsor" && f.sponsor?.klip ? (
             // klip sponsora (np. animowane logo) zamiast planszy końcowej
             <OffthreadVideo src={staticFile(f.sponsor.klip)} volume={0.9} />
           ) : (

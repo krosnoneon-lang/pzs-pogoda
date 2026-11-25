@@ -28,6 +28,10 @@ on:
         description: "Gotowe nagranie CTA (https://…mp3)"
         required: false
         default: ""
+      sponsor:
+        description: "Sponsor na ten raz (id z harmonogram.json, np. folkowa) – puste = wg harmonogramu"
+        required: false
+        default: ""
       metricool:
         description: "Wysłać do Metricool? (tak/nie)"
         required: false
@@ -85,6 +89,7 @@ jobs:
         run: |
           EXTRA=""
           if [ -n "${{ github.event.inputs.date }}" ]; then EXTRA="--date ${{ github.event.inputs.date }}"; fi
+          if [ -n "${{ github.event.inputs.sponsor }}" ]; then EXTRA="$EXTRA --sponsor ${{ github.event.inputs.sponsor }}"; fi
           npx tsx scripts/sponsor.ts $EXTRA
 
       - name: Pobranie prognozy
@@ -136,10 +141,6 @@ jobs:
           cp out/prognoza.mp4 "out/prognoza-$D.mp4"
           gh release create "$TAG" "out/prognoza-$D.mp4" --repo "$MEDIA_REPO" --title "Prognoza $D" --notes "auto" --latest=false
           echo "url=https://github.com/$MEDIA_REPO/releases/download/$TAG/prognoza-$D.mp4" >> $GITHUB_OUTPUT
-          # sprzątanie: filmy starsze niż 7 dni
-          gh release list --repo "$MEDIA_REPO" --limit 100 --json tagName,createdAt \
-            --jq '.[] | select(.tagName|startswith("prognoza-")) | select((now - (.createdAt|fromdate)) > 604800) | .tagName' \
-            | xargs -r -n1 gh release delete --repo "$MEDIA_REPO" --cleanup-tag -y
 
       - name: Metricool – szkic albo publikacja
         # Włączenie: Variables → METRICOOL_ENABLED = true; Secrets → METRICOOL_USER_TOKEN;
@@ -152,3 +153,19 @@ jobs:
           # publish = publikacja automatyczna; zmień na draft, żeby wrócić do szkiców do zatwierdzenia
           METRICOOL_MODE: publish
         run: npx tsx scripts/publish-metricool.ts "${{ steps.media.outputs.url }}"
+
+      - name: Sprzątanie starych filmów (starsze niż 7 dni)
+        # Osobny krok PO Metricool: wcześniej sprzątanie kasowało też świeży film, zanim Metricool zdążył go pobrać.
+        # Wiek liczony z daty w nazwie tagu (prognoza-RRRR-MM-DD-…), nie z createdAt.
+        if: always() && steps.media.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.MEDIA_REPO_TOKEN || github.token }}
+          MEDIA_REPO: ${{ vars.MEDIA_REPO || github.repository }}
+        run: |
+          CUTOFF=$(date -d '-7 days' +%F)
+          gh api "repos/$MEDIA_REPO/releases?per_page=100" --jq '.[].tag_name' \
+            | grep '^prognoza-' \
+            | while read -r T; do
+                TD=${T:9:10}
+                if [[ "$TD" < "$CUTOFF" ]]; then gh release delete "$T" --repo "$MEDIA_REPO" --cleanup-tag -y; fi
+              done

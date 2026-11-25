@@ -34,6 +34,7 @@ type Wpis = { od: string; do: string; id: string };
 const root = path.join(__dirname, "..", "public");
 const args = process.argv.slice(2);
 const arg = (k: string) => (args.includes(k) ? args[args.indexOf(k) + 1] : undefined);
+const FORCE = arg("--sponsor"); // ręczny wybór sponsora (id z public/sponsorzy/harmonogram.json)
 const DATE = arg("--date") ?? new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Warsaw" }).format(new Date());
 
 /* ---------- CSV ---------- */
@@ -112,7 +113,12 @@ async function logo(s: Sponsor): Promise<string | undefined> {
 export async function pickSponsor(date = DATE): Promise<Sponsor | null> {
   let src;
   const sheet = process.env.SPONSOR_SHEET_ID;
-  if (sheet) {
+  if (FORCE) {
+    src = fromRepo();
+    if (!src.sponsorzy.some((s) => s.id === FORCE)) throw new Error(`Brak sponsora „${FORCE}” w public/sponsorzy/harmonogram.json`);
+    src = { ...src, harmonogram: [{ od: date, do: date, id: FORCE }] };
+    console.log(`Sponsor wybrany ręcznie: ${FORCE}`);
+  } else if (sheet) {
     try { src = await fromSheet(sheet); console.log("Sponsorzy: arkusz Google"); }
     catch (e) { console.warn((e as Error).message, "– używam public/sponsorzy/harmonogram.json"); }
   }

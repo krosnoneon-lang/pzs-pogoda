@@ -41,7 +41,13 @@ export const timeline2 = (f?: Partial<Forecast>) => {
     const voiceEnd = INTRO_FR + sec(s.mapa);
     endLen = Math.max(sec(5.5), voiceEnd - END_FROM + sec(1.6));
   }
-  return { MAP, INTRO_FR, END: endLen, END_FROM, TOTAL: END_FROM + endLen };
+  // CTA nigdy nie wchodzi na lektora: startuje najwcześniej 0,4 s po końcu nagrania mapy
+  const voiceEnd = s.mapa ? INTRO_FR + sec(s.mapa) : 0;
+  const CTA_FROM = Math.max(END_FROM + sec(VOICEOVER.ctaStartAt), voiceEnd + sec(0.4));
+  // sponsor z pożegnaniem (np. Folkowa Dolina) kończy lektorem sponsora – bez drugiego lektora (CTA PzS)
+  const ctaOn = !!f?.cta && !(f?.endCard === "sponsor" && f?.sponsor?.pozegnanie);
+  if (ctaOn && f?.ctaSec && !klip) endLen = Math.max(endLen, CTA_FROM + sec(f.ctaSec + 1.2) - END_FROM);
+  return { MAP, INTRO_FR, END: endLen, END_FROM, CTA_FROM, ctaOn, TOTAL: END_FROM + endLen };
 };
 
 const text: React.CSSProperties = { fontFamily: FONT_FAMILY, color: COLORS.white };
@@ -121,7 +127,7 @@ export const PrognozaMapa: React.FC<Forecast> = (f) => {
             // klip sponsora (np. animowane logo) zamiast planszy końcowej
             <OffthreadVideo src={staticFile(f.sponsor.klip)} volume={0.9} />
           ) : (
-            <EndCardView card={card} bg={bg} duck={!!f.cta} />
+            <EndCardView card={card} bg={bg} duck={T.ctaOn} />
           )}
         </AbsoluteFill>
       </Sequence>
@@ -138,8 +144,8 @@ export const PrognozaMapa: React.FC<Forecast> = (f) => {
       )}
       {f.voiceover && s.intro ? voice(LEKTOR_FILES.intro, 0) : null}
       {f.voiceover && s.mapa ? voice(LEKTOR_FILES.mapa, T.INTRO_FR - sec(LEAD)) : null}
-      {f.cta && (
-        <Sequence from={T.END_FROM + sec(VOICEOVER.ctaStartAt)} name="lektor-cta">
+      {T.ctaOn && (
+        <Sequence from={T.CTA_FROM} name="lektor-cta">
           <Audio src={staticFile(VOICEOVER.ctaFile)} volume={VOICEOVER.volume} />
         </Sequence>
       )}
